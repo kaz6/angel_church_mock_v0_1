@@ -82,6 +82,12 @@ const FALLBACK_STATUS_TEXT = '（状態不明）';
 const statusTexts =
   (window.SCENARIO_DATA && window.SCENARIO_DATA.statusTexts) || {};
 
+const statusChangeTexts =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.statusChangeTexts) || {};
+
+// 該当 stat / 方向の文候補が見つからない場合の安全な文
+const FALLBACK_STATUS_CHANGE_TEXT = '小さな変化があった。';
+
 // memoryFlags 初期値
 const memoryFlagsDefault = {
   angel_revealed: false,
@@ -585,6 +591,7 @@ function createInitialState() {
     stats: Object.assign({}, statsDefault),
     actionCounts: Object.assign({}, actionCountsDefault),
     lastStatChanges: null,
+    lastStatusChangeComment: '',
     statChangeLog: [],
     seenEventIds: [],
     log: [],
@@ -805,6 +812,51 @@ function formatStatusTextsForDebug(stats) {
   };
 }
 
+const PRAYER_RELATED_LOCATION_PATTERN = /祈り/;
+
+function isPrayerRelatedContext() {
+  if (gameState.phase !== 'free') return false;
+  if (gameState.timeSlot === 'evening') return true;
+  if (gameState.pendingAction === 'pray') return true;
+  const loc = gameState.currentLocation || '';
+  return PRAYER_RELATED_LOCATION_PATTERN.test(loc);
+}
+
+function shouldShowPrayerTuningStatus() {
+  if (debugVisible) return true;
+  return isPrayerRelatedContext();
+}
+
+function getVisibleStatusTexts() {
+  const stats = gameState.stats;
+  const lines = [
+    getStatusText('trust', stats.trust),
+    getStatusText('caretakerAptitude', stats.caretakerAptitude),
+    getStatusText('mentalMargin', stats.mentalMargin),
+    getStatusText('angelFatigue', stats.angelFatigue),
+  ];
+  if (shouldShowPrayerTuningStatus()) {
+    lines.push(getStatusText('prayerTuning', stats.prayerTuning));
+  }
+  return lines;
+}
+
+// 実際に変化した stats（key: 差分）の中からランダムに1つ選び、
+// その stat・方向（up/down）に対応する文をランダムに1つ返す。
+// render 時ではなく、stats 変化のタイミング（applyStatChanges）で1回だけ呼ぶこと。
+function pickStatusChangeComment(changes) {
+  const changedKeys = Object.keys(changes).filter((key) => changes[key]);
+  if (changedKeys.length === 0) return '';
+
+  const key = changedKeys[Math.floor(Math.random() * changedKeys.length)];
+  const dir = changes[key] > 0 ? 'up' : 'down';
+  const pool = (statusChangeTexts[key] || {})[dir];
+  if (Array.isArray(pool) && pool.length > 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return FALLBACK_STATUS_CHANGE_TEXT;
+}
+
 function formatChangesText(changes) {
   return Object.keys(changes)
     .filter((key) => changes[key] !== 0)
@@ -842,6 +894,7 @@ function applyStatChanges(label, changes, options = {}) {
     label,
     changes: actualChanges,
   };
+  gameState.lastStatusChangeComment = pickStatusChangeComment(actualChanges);
 
   if (!Array.isArray(gameState.statChangeLog)) {
     gameState.statChangeLog = [];
@@ -952,6 +1005,7 @@ function advanceTime() {
   }
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
+  gameState.lastStatusChangeComment = '';
 
   if (gameState.timeSlot === 'night') {
     if (forcedNightEvents[gameState.day]) {
@@ -1072,6 +1126,7 @@ function onNightCareContinue() {
   gameState.freeStep = 'select';
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
+  gameState.lastStatusChangeComment = '';
   gameState.currentLocation = '個室';
   render();
 }
@@ -1079,6 +1134,27 @@ function onNightCareContinue() {
 function showEndingScreen() {
   gameState.phase = 'ending';
   addLog('モック v0.2 の範囲はここまで。');
+  render();
+}
+
+/* ---- デバッグ用: OPスキップ（デバッグ表示ON時のみ使用可） ---- */
+// 1日目オープニングを完了済み扱いにし、2日目朝の自由行動へ直接進める。
+// stats / actionCounts / nightCareCount は createInitialState() の初期値のまま。
+function debugSkipToDay2Morning() {
+  const preservedCallName = gameState.playerCallName;
+  gameState = createInitialState();
+  gameState.day = 2;
+  gameState.timeSlot = 'morning';
+  gameState.phase = 'free';
+  gameState.freeStep = 'select';
+  gameState.playerCallName = preservedCallName || DEFAULT_CALL_NAME;
+  gameState.memoryFlags.angel_revealed = true;
+  gameState.memoryFlags.first_night_care_done = true;
+  gameState.relationStage = 3; // 通常の1日目オープニング完了相当（angel_confession/meal_event/night_careの+1ずつ）
+  gameState.currentLocation = '個室';
+  gameState.angelExpression = 'soft';
+  gameState.angelStatus = '朝の支度をしている';
+  addLog('（デバッグ）2日目の朝へスキップした。');
   render();
 }
 
@@ -1154,6 +1230,40 @@ function renderAngelPanel() {
   document.getElementById('angel-status-text').textContent = gameState.angelStatus || '';
   document.getElementById('relation-stage-text').textContent =
     `距離感: ${relationLabel(gameState.relationStage)} (${gameState.relationStage})`;
+}
+
+function renderStatusTexts() {
+  const panel = document.getElementById('status-text-panel');
+  const list = document.getElementById('status-text-list');
+  const changeList = document.getElementById('status-change-list');
+  if (!panel || !list) return;
+
+  if (gameState.phase !== 'free') {
+    panel.classList.add('hidden');
+    list.innerHTML = '';
+    if (changeList) changeList.innerHTML = '';
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  list.innerHTML = '';
+  getVisibleStatusTexts().forEach((text) => {
+    const li = document.createElement('li');
+    li.textContent = text;
+    list.appendChild(li);
+  });
+
+  if (!changeList) return;
+  changeList.innerHTML = '';
+  // 「今回の変化」は常に1文だけ表示する（抽選は applyStatChanges 側で1回だけ行う）
+  const showComment =
+    (gameState.freeStep === 'result' || gameState.freeStep === 'night_care') &&
+    !!gameState.lastStatusChangeComment;
+  if (!showComment) return;
+
+  const li = document.createElement('li');
+  li.textContent = gameState.lastStatusChangeComment;
+  changeList.appendChild(li);
 }
 
 function renderCallNameInput() {
@@ -1279,6 +1389,7 @@ function renderDebug() {
     statusTexts: formatStatusTextsForDebug(gameState.stats),
     actionCounts: formatActionCountsForDebug(gameState.actionCounts),
     lastStatChanges: gameState.lastStatChanges,
+    lastStatusChangeComment: gameState.lastStatusChangeComment,
     statChangeLog: gameState.statChangeLog,
     memoryFlags: gameState.memoryFlags,
     seenEventIds: gameState.seenEventIds,
@@ -1295,6 +1406,7 @@ function render() {
   showScreen('game');
   renderHUD();
   renderAngelPanel();
+  renderStatusTexts();
   if (gameState.phase === 'opening') {
     renderOpening();
   } else if (gameState.phase === 'free') {
@@ -1341,6 +1453,8 @@ function loadGame() {
       stats: Object.assign({}, statsDefault, loaded.stats || {}),
       actionCounts: Object.assign({}, actionCountsDefault, loaded.actionCounts || {}),
       lastStatChanges: loaded.lastStatChanges || null,
+      lastStatusChangeComment:
+        typeof loaded.lastStatusChangeComment === 'string' ? loaded.lastStatusChangeComment : '',
       statChangeLog: Array.isArray(loaded.statChangeLog) ? loaded.statChangeLog : [],
       seenEventIds: loaded.seenEventIds || [],
       seenNightCareIds: loaded.seenNightCareIds || [],
@@ -1417,6 +1531,7 @@ function toggleDebug() {
   debugVisible = !debugVisible;
   document.getElementById('debug-panel').classList.toggle('hidden', !debugVisible);
   document.getElementById('btn-debug-toggle').textContent = 'デバッグ表示 ' + (debugVisible ? 'ON' : 'OFF');
+  renderStatusTexts();
   if (debugVisible) renderDebug();
 }
 
@@ -1441,6 +1556,7 @@ function wireButtons() {
   });
   document.getElementById('btn-reset').addEventListener('click', resetGame);
   document.getElementById('btn-debug-toggle').addEventListener('click', toggleDebug);
+  document.getElementById('btn-debug-op-skip').addEventListener('click', debugSkipToDay2Morning);
 
   document.getElementById('btn-ending-title').addEventListener('click', () => {
     showScreen('title');
