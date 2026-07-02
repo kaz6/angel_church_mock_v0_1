@@ -1,0 +1,25 @@
+# Claude / AI tool local files
+.claude/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs / temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+~$*
+
+# Environment / secrets
+.env
+.env.*
+
+# Future build/dependency folders
+node_modules/
+dist/
+build/
+.cache/
+coverage/

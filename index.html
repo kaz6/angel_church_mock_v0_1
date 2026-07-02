@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>辺境教会と天使様 - 生活シミュレーション モック</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ================= タイトル画面 ================= -->
+<section id="screen-title" class="screen">
+  <div class="title-wrap">
+    <h1 class="title-main">辺境教会の天使様と、</h1>
+    <h2 class="title-sub">はじまりの生活</h2>
+    <p class="title-caption">- 企画検証用モック v0.2 -</p>
+    <div class="title-buttons">
+      <button id="btn-new-game" class="btn btn-primary">はじめから</button>
+      <button id="btn-continue" class="btn">つづきから</button>
+      <button id="btn-title-reset" class="btn btn-danger">リセット</button>
+    </div>
+    <p id="title-save-info" class="title-save-info"></p>
+  </div>
+</section>
+
+<!-- ================= ゲーム画面 ================= -->
+<section id="screen-game" class="screen hidden">
+  <header class="game-header">
+    <div class="game-header-left">
+      <span class="game-title-label">辺境教会の天使様と、はじまりの生活</span>
+    </div>
+    <div class="game-header-right">
+      <span id="hud-day" class="hud-chip">1日目</span>
+      <span id="hud-time" class="hud-chip">昼</span>
+      <span id="hud-location" class="hud-chip">-</span>
+    </div>
+  </header>
+
+  <main class="game-main">
+    <!-- 天使様立ち絵プレースホルダー + 状態 -->
+    <aside class="angel-panel">
+      <div class="angel-portrait-frame">
+        <div id="angel-portrait-placeholder" class="angel-portrait-placeholder">
+          <span class="angel-portrait-label">天使様</span>
+          <span id="angel-expression-text" class="angel-portrait-expression">表情: normal</span>
+        </div>
+      </div>
+      <p id="angel-status-text" class="angel-status-text">-</p>
+      <p id="relation-stage-text" class="relation-stage-text">距離感: -</p>
+    </aside>
+
+    <!-- メッセージ・選択肢・行動 -->
+    <div class="main-panel">
+      <div id="message-box" class="message-box">
+        <p id="message-text" class="message-text"></p>
+      </div>
+
+      <div id="choice-box" class="choice-box"></div>
+
+      <div id="action-box" class="action-box hidden">
+        <p class="action-box-label">なにをしますか？</p>
+        <div id="action-buttons" class="action-buttons"></div>
+      </div>
+
+      <div class="control-row">
+        <button id="btn-save" class="btn btn-small">セーブ</button>
+        <button id="btn-load" class="btn btn-small">ロード</button>
+        <button id="btn-reset" class="btn btn-small btn-danger">リセット</button>
+        <button id="btn-debug-toggle" class="btn btn-small">デバッグ表示 OFF</button>
+      </div>
+
+      <div id="debug-panel" class="debug-panel hidden">
+        <h3>デバッグ情報</h3>
+        <pre id="debug-content"></pre>
+      </div>
+    </div>
+
+    <!-- ログ欄 -->
+    <aside class="log-panel">
+      <h3 class="log-title">ログ</h3>
+      <div id="log-list" class="log-list"></div>
+    </aside>
+  </main>
+</section>
+
+<!-- ================= 終了画面 ================= -->
+<section id="screen-ending" class="screen hidden">
+  <div class="ending-wrap">
+    <p class="ending-text">モック v0.2 はここまでです。<br>ここから先は、正式な世話役になるまでの14日間へ続きます。</p>
+    <button id="btn-ending-title" class="btn btn-primary">タイトルへ戻る</button>
+  </div>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="scenario-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
