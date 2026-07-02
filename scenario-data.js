@@ -8,6 +8,7 @@
    今回移したもの:
    - nightCareEvents（毎晩ケア）
    - callNameReactions（呼び名の特定ワード反応）
+   - statLabels / actionLabels / timeSlotLabels（表示用ラベル）
 
    setFlags / relationChange 等の「処理」は app.js 側に残し、
    ここには台詞・演出まわりのデータのみを置く。
@@ -16,6 +17,28 @@
 'use strict';
 
 window.SCENARIO_DATA = {
+  statLabels: {
+    trust: '信頼',
+    prayerTuning: '祈りの調律',
+    caretakerAptitude: '世話役適性',
+    mentalMargin: '心身の余白',
+    angelFatigue: '天使様の疲労',
+  },
+
+  actionLabels: {
+    chores: '家事をする',
+    pray: '祈る',
+    rest: '休む',
+    talk: '話しかける',
+    nightCare: '夜ケア',
+  },
+
+  timeSlotLabels: {
+    morning: '朝',
+    noon: '昼',
+    night: '夜',
+  },
+
   nightCareEvents: [
     {
       id: 'night_care_d2',

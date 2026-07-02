@@ -20,7 +20,47 @@
 const STORAGE_KEY = 'angelChurchMockV0_1_save';
 
 const TIME_SLOTS = ['morning', 'noon', 'night'];
-const TIME_LABELS = { morning: '朝', noon: '昼', night: '夜' };
+
+// 表示ラベル（編集: scenario-data.js の SCENARIO_DATA.statLabels 等）
+const FALLBACK_STAT_LABELS = {
+  trust: '信頼',
+  prayerTuning: '祈りの調律',
+  caretakerAptitude: '世話役適性',
+  mentalMargin: '心身の余白',
+  angelFatigue: '天使様の疲労',
+};
+
+const FALLBACK_ACTION_LABELS = {
+  chores: '家事をする',
+  pray: '祈る',
+  rest: '休む',
+  talk: '話しかける',
+  nightCare: '夜ケア',
+};
+
+const FALLBACK_TIME_SLOT_LABELS = {
+  morning: '朝',
+  noon: '昼',
+  night: '夜',
+};
+
+const statLabels = Object.assign(
+  {},
+  FALLBACK_STAT_LABELS,
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.statLabels) || {}
+);
+
+const actionLabels = Object.assign(
+  {},
+  FALLBACK_ACTION_LABELS,
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.actionLabels) || {}
+);
+
+const timeSlotLabels = Object.assign(
+  {},
+  FALLBACK_TIME_SLOT_LABELS,
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.timeSlotLabels) || {}
+);
 
 const CALL_NAME_MAX_LENGTH = 7;
 const DEFAULT_CALL_NAME = 'あなた';
@@ -78,12 +118,12 @@ const actionCountsDefault = {
   nightCare: 0,
 };
 
-// 2日目朝から表示する基本行動
+// 2日目朝から表示する基本行動（ラベルは actionLabels 由来）
 const actionDefinitions = [
-  { id: 'chores', label: '家事をする' },
-  { id: 'pray', label: '祈る' },
-  { id: 'rest', label: '休む' },
-  { id: 'talk', label: '話しかける' },
+  { id: 'chores', label: actionLabels.chores },
+  { id: 'pray', label: actionLabels.pray },
+  { id: 'rest', label: actionLabels.rest },
+  { id: 'talk', label: actionLabels.talk },
 ];
 
 /* ---------------------- 固定オープニング（1日目） ---------------------- */
@@ -706,14 +746,6 @@ const actionLogLabels = {
 /* ---- パラメーター（stats）更新 ---- */
 // 心身の余白は行動不能を生むスタミナではないため、低くても行動は制限しない。
 
-const statDisplayNames = {
-  trust: '信頼',
-  prayerTuning: '祈りの調律',
-  caretakerAptitude: '世話役適性',
-  mentalMargin: '心身の余白',
-  angelFatigue: '天使様の疲労',
-};
-
 function clampStats() {
   Object.keys(statsRange).forEach((key) => {
     const [min, max] = statsRange[key];
@@ -723,7 +755,23 @@ function clampStats() {
 
 function formatStatDelta(key, delta) {
   const sign = delta > 0 ? '+' : '';
-  return `${statDisplayNames[key] || key} ${sign}${delta}`;
+  return `${statLabels[key] || key} ${sign}${delta}`;
+}
+
+function formatStatsForDebug(stats) {
+  const labeled = {};
+  Object.keys(stats).forEach((key) => {
+    labeled[statLabels[key] || key] = stats[key];
+  });
+  return labeled;
+}
+
+function formatActionCountsForDebug(counts) {
+  const labeled = {};
+  Object.keys(counts).forEach((key) => {
+    labeled[actionLabels[key] || key] = counts[key];
+  });
+  return labeled;
 }
 
 function formatChangesText(changes) {
@@ -780,7 +828,7 @@ function applyStatChanges(label, changes, options = {}) {
 
 function applyChoresStats() {
   applyStatChanges(
-    '家事をする',
+    actionLabels.chores,
     { caretakerAptitude: 2, angelFatigue: -1, mentalMargin: -1 },
     { actionCountKey: 'chores' }
   );
@@ -791,12 +839,12 @@ function applyPrayStats() {
   if (gameState.stats.angelFatigue <= 3) {
     changes.prayerTuning += 1;
   }
-  applyStatChanges('祈る', changes, { actionCountKey: 'pray' });
+  applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
 }
 
 function applyRestStats() {
   applyStatChanges(
-    '休む',
+    actionLabels.rest,
     { mentalMargin: 2 },
     {
       actionCountKey: 'rest',
@@ -810,7 +858,7 @@ function applyRestStats() {
 }
 
 function applyTalkStats() {
-  applyStatChanges('話しかける', { trust: 2 }, { actionCountKey: 'talk' });
+  applyStatChanges(actionLabels.talk, { trust: 2 }, { actionCountKey: 'talk' });
 }
 
 function applyNightCareStats() {
@@ -818,7 +866,7 @@ function applyNightCareStats() {
   if (gameState.stats.mentalMargin >= 7) {
     changes.angelFatigue -= 1;
   }
-  applyStatChanges('夜のケア', changes, {
+  applyStatChanges(actionLabels.nightCare, changes, {
     actionCountKey: 'nightCare',
     beforeApply: (before) => {
       if (before.mentalMargin <= 2) {
@@ -1050,7 +1098,8 @@ function renderActionButtons() {
 
 function renderHUD() {
   document.getElementById('hud-day').textContent = `${gameState.day}日目`;
-  document.getElementById('hud-time').textContent = TIME_LABELS[gameState.timeSlot] || gameState.timeSlot;
+  document.getElementById('hud-time').textContent =
+    timeSlotLabels[gameState.timeSlot] || gameState.timeSlot;
   document.getElementById('hud-location').textContent = gameState.currentLocation;
   document.body.classList.toggle('time-night', gameState.timeSlot === 'night');
 }
@@ -1178,14 +1227,15 @@ function renderDebug() {
   const info = {
     day: gameState.day,
     timeSlot: gameState.timeSlot,
+    timeSlotLabel: timeSlotLabels[gameState.timeSlot] || gameState.timeSlot,
     phase: gameState.phase,
     relationStage: gameState.relationStage,
     nightCareCount: gameState.nightCareCount,
     careStyle: gameState.careStyle,
     playerCallName: gameState.playerCallName,
     effectiveCallName: getPlayerCallName(),
-    stats: gameState.stats,
-    actionCounts: gameState.actionCounts,
+    stats: formatStatsForDebug(gameState.stats),
+    actionCounts: formatActionCountsForDebug(gameState.actionCounts),
     lastStatChanges: gameState.lastStatChanges,
     statChangeLog: gameState.statChangeLog,
     memoryFlags: gameState.memoryFlags,
@@ -1213,7 +1263,7 @@ function render() {
 }
 
 function addLog(text) {
-  const tag = `${gameState.day}日目 ${TIME_LABELS[gameState.timeSlot] || gameState.timeSlot}`;
+  const tag = `${gameState.day}日目 ${timeSlotLabels[gameState.timeSlot] || gameState.timeSlot}`;
   gameState.log.push(`[${tag}] ${text}`);
 }
 
@@ -1274,7 +1324,7 @@ function updateTitleSaveInfo() {
   if (hasSave()) {
     try {
       const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      el.textContent = `セーブデータあり（${s.day}日目 ${TIME_LABELS[s.timeSlot] || ''}）`;
+      el.textContent = `セーブデータあり（${s.day}日目 ${timeSlotLabels[s.timeSlot] || ''}）`;
     } catch (e) {
       el.textContent = 'セーブデータあり';
     }
