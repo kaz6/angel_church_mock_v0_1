@@ -14,6 +14,7 @@
    - statusTexts（stats 値に応じた状態文・雰囲気文）
    - statusChangeTexts（stats 増減時の雰囲気文）
    - endingTexts（14日目エンディング本文・置き場のみ。分岐処理は未実装）
+   - openingScenes（1日目オープニング本文・一部のみ。進行は app.js）
 
    setFlags / relationChange 等の「処理」は app.js 側に残し、
    ここには台詞・演出まわりのデータのみを置く。
@@ -43,6 +44,46 @@ window.SCENARIO_DATA = {
     noon: '昼',
     night: '夜',
   },
+
+  openingScenes: [
+    {
+      id: 'arrival',
+      timeSlot: 'noon',
+      location: '教会前',
+      angelExpression: 'tired',
+      angelStatus: '少し疲れた様子で出迎えてくれた',
+      logText: '辺境の教会に到着した。',
+      text: [
+        '夏の終わりが近い、よく晴れた昼過ぎ。乗合馬車を降りた先には、辺境の小さな教会が建っていた。',
+        '大教会からの辞令を手に、あなたはひとりで戸を叩く。しばらくして、木の扉がゆっくりと開いた。',
+        '「――いらっしゃい。待っていました」',
+        '出迎えてくれたシスターは柔らかく微笑んだが、その声にはどこか疲れがにじんでいるように感じた。',
+      ],
+      choices: [{ label: '教会の中へ入る', next: 'ask_call_name' }],
+    },
+    {
+      id: 'sleep1',
+      location: '個室',
+      angelExpression: 'soft',
+      angelStatus: '静かに部屋を出ていった',
+      logText: '眠りについた。',
+      text: [
+        '長旅の疲れもあって、あなたは大人しく従うことにした。ベッドに横になり、静かに目を閉じる。',
+        '木の軋む音、遠くの鳥の声、風が窓を撫でる音。辺境の教会には、大教会にはなかった静けさがあった。',
+        'いつの間にか、あなたは眠りに落ちていた。',
+      ],
+      choices: [{ label: '（……）', next: 'noise_wake' }],
+    },
+    {
+      id: 'bridge_to_attic',
+      location: '個室',
+      logText: '屋根裏部屋の異変が気になった。',
+      text: [
+        '迷っているうちにも、物音は止まない。胸騒ぎを覚えたあなたは、結局、音のした屋根裏部屋へと向かうことにした。',
+      ],
+      choices: [{ label: '（……）', next: 'attic_fire' }],
+    },
+  ],
 
   nightCareEvents: [
     {

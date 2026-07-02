@@ -148,7 +148,11 @@ const actionDefinitions = [
 // 各シーンは id / text / location / angelExpression / angelStatus /
 // choices（next, setFlags, relationChange, logText を持てる） / setFlags /
 // relationChange / timeSlot / logText を持つ。
-const sceneDefinitions = [
+// 本文の一部は scenario-data.js の openingScenes から取得（id で解決、未移行はここに残す）。
+const openingScenes =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.openingScenes) || [];
+
+const FALLBACK_OPENING_SCENES = [
   {
     id: 'arrival',
     timeSlot: 'noon',
@@ -156,15 +160,39 @@ const sceneDefinitions = [
     angelExpression: 'tired',
     angelStatus: '少し疲れた様子で出迎えてくれた',
     logText: '辺境の教会に到着した。',
-    text:
-      '夏の終わりが近い、よく晴れた昼過ぎ。\n' +
-      '乗合馬車を降りた先には、辺境の小さな教会が建っていた。\n\n' +
-      '大教会からの辞令を手に、あなたはひとりで戸を叩く。\n' +
-      'しばらくして、木の扉がゆっくりと開いた。\n\n' +
-      '「――いらっしゃい。待っていました」\n\n' +
+    text: [
+      '夏の終わりが近い、よく晴れた昼過ぎ。乗合馬車を降りた先には、辺境の小さな教会が建っていた。',
+      '大教会からの辞令を手に、あなたはひとりで戸を叩く。しばらくして、木の扉がゆっくりと開いた。',
+      '「――いらっしゃい。待っていました」',
       '出迎えてくれたシスターは柔らかく微笑んだが、その声にはどこか疲れがにじんでいるように感じた。',
+    ],
     choices: [{ label: '教会の中へ入る', next: 'ask_call_name' }],
   },
+  {
+    id: 'sleep1',
+    location: '個室',
+    angelExpression: 'soft',
+    angelStatus: '静かに部屋を出ていった',
+    logText: '眠りについた。',
+    text: [
+      '長旅の疲れもあって、あなたは大人しく従うことにした。ベッドに横になり、静かに目を閉じる。',
+      '木の軋む音、遠くの鳥の声、風が窓を撫でる音。辺境の教会には、大教会にはなかった静けさがあった。',
+      'いつの間にか、あなたは眠りに落ちていた。',
+    ],
+    choices: [{ label: '（……）', next: 'noise_wake' }],
+  },
+  {
+    id: 'bridge_to_attic',
+    location: '個室',
+    logText: '屋根裏部屋の異変が気になった。',
+    text: [
+      '迷っているうちにも、物音は止まない。胸騒ぎを覚えたあなたは、結局、音のした屋根裏部屋へと向かうことにした。',
+    ],
+    choices: [{ label: '（……）', next: 'attic_fire' }],
+  },
+];
+
+const sceneDefinitions = [
   {
     id: 'ask_call_name',
     location: '教会・廊下',
@@ -193,20 +221,6 @@ const sceneDefinitions = [
       '「――ひとつだけ。屋根裏部屋には、入ってはなりませんよ」',
     // ここでは「休む」のみを表示する
     choices: [{ label: '休む', next: 'sleep1' }],
-  },
-  {
-    id: 'sleep1',
-    location: '個室',
-    angelExpression: 'soft',
-    angelStatus: '静かに部屋を出ていった',
-    logText: '眠りについた。',
-    text:
-      '長旅の疲れもあって、あなたは大人しく従うことにした。\n' +
-      'ベッドに横になり、静かに目を閉じる。\n\n' +
-      '木の軋む音、遠くの鳥の声、風が窓を撫でる音。\n' +
-      '辺境の教会には、大教会にはなかった静けさがあった。\n\n' +
-      'いつの間にか、あなたは眠りに落ちていた。',
-    choices: [{ label: '（……）', next: 'noise_wake' }],
   },
   {
     id: 'noise_wake',
@@ -244,15 +258,6 @@ const sceneDefinitions = [
         logText: '言いつけを守り、部屋に留まろうとした。',
       },
     ],
-  },
-  {
-    id: 'bridge_to_attic',
-    location: '個室',
-    logText: '屋根裏部屋の異変が気になった。',
-    text:
-      '迷っているうちにも、物音は止まない。\n' +
-      '胸騒ぎを覚えたあなたは、結局、音のした屋根裏部屋へと向かうことにした。',
-    choices: [{ label: '（……）', next: 'attic_fire' }],
   },
   {
     id: 'attic_fire',
@@ -313,6 +318,30 @@ const sceneDefinitions = [
     choices: [{ label: '2日目の朝へ', next: 'FREE_START' }],
   },
 ];
+
+function formatOpeningSceneText(text) {
+  if (!text) return '';
+  if (Array.isArray(text)) return text.join('\n\n');
+  if (typeof text === 'string') return text;
+  return '';
+}
+
+function normalizeOpeningScene(scene) {
+  if (!scene) return null;
+  return Object.assign({}, scene, {
+    text: formatOpeningSceneText(scene.text),
+  });
+}
+
+function findOpeningScene(sceneId) {
+  const fromData = openingScenes.find((s) => s.id === sceneId);
+  if (fromData) return normalizeOpeningScene(fromData);
+  const fromApp = sceneDefinitions.find((s) => s.id === sceneId);
+  if (fromApp) return fromApp;
+  const fromFallback = FALLBACK_OPENING_SCENES.find((s) => s.id === sceneId);
+  if (fromFallback) return normalizeOpeningScene(fromFallback);
+  return null;
+}
 
 /* ---------------------- 自由行動：時間帯ごとの導入文 ---------------------- */
 const slotIntroTexts = {
@@ -629,7 +658,7 @@ function findCallNameReaction(rawInput) {
 /* ---- オープニング（固定シーン）の進行 ---- */
 
 function enterScene(sceneId) {
-  const scene = sceneDefinitions.find((s) => s.id === sceneId);
+  const scene = findOpeningScene(sceneId);
   if (!scene) return;
   gameState.currentSceneId = sceneId;
   if (sceneId === 'night_care') {
@@ -653,7 +682,7 @@ function onCallNameSubmit() {
   const trimmed = raw.trim();
   gameState.playerCallName = trimmed;
 
-  const scene = sceneDefinitions.find((s) => s.id === gameState.currentSceneId);
+  const scene = findOpeningScene(gameState.currentSceneId);
   addLog(trimmed ? `呼び名を「${trimmed}」と伝えた。` : '呼び名を伝えなかった。');
 
   const reaction = findCallNameReaction(trimmed);
@@ -1302,7 +1331,7 @@ function renderOpening() {
     renderChoiceButtons([{ label: '続ける', onClick: onCallNameReactionContinue }]);
     return;
   }
-  const scene = sceneDefinitions.find((s) => s.id === gameState.currentSceneId);
+  const scene = findOpeningScene(gameState.currentSceneId);
   if (!scene) return;
   if (scene.id === 'night_care') {
     setMessage(getOpeningNightCareText());
