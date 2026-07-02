@@ -27,6 +27,7 @@ const FALLBACK_STAT_LABELS = {
   prayerTuning: '祈りの調律',
   caretakerAptitude: '世話役適性',
   mentalMargin: '心身の余白',
+  mentalMarginMax: '心身の余白（上限）',
   angelFatigue: '天使様の疲労',
 };
 
@@ -116,6 +117,7 @@ const statsDefault = {
   prayerTuning: 0,
   caretakerAptitude: 0,
   mentalMargin: 5,
+  mentalMarginMax: 10,
   angelFatigue: 5,
 };
 
@@ -123,7 +125,6 @@ const statsRange = {
   trust: [0, 30],
   prayerTuning: [0, 30],
   caretakerAptitude: [0, 30],
-  mentalMargin: [0, 10],
   angelFatigue: [0, 10],
 };
 
@@ -190,20 +191,18 @@ const FALLBACK_OPENING_SCENES = [
     ],
     choices: [{ label: '（……）', next: 'attic_fire' }],
   },
-];
-
-const sceneDefinitions = [
   {
     id: 'ask_call_name',
+    type: 'callNameInput',
     location: '教会・廊下',
     angelExpression: 'soft',
     angelStatus: '静かにこちらを見ている',
-    inputCallName: true,
     next: 'guide_room',
-    text:
-      '扉の向こうで、シスターが少しだけ足を止めた。\n\n' +
-      '「――失礼です。あなたのことは、何とお呼びすればよいですか」\n\n' +
+    text: [
+      '扉の向こうで、シスターが少しだけ足を止めた。',
+      '「――失礼です。あなたのことは、何とお呼びすればよいですか」',
       '短い間ののち、穏やかな視線がこちらに向けられる。',
+    ],
   },
   {
     id: 'guide_room',
@@ -211,17 +210,48 @@ const sceneDefinitions = [
     angelExpression: 'tired',
     angelStatus: '部屋の説明をしてくれている',
     logText: '個室に案内された。',
-    text:
-      'シスターに案内されたのは、二つのベッドが並ぶ小さな個室だった。\n\n' +
-      '「狭い教会ですから、しばらくはこのお部屋を一緒に使っていただくことになります」\n\n' +
-      '「では、{playerCallName}、こちらのお部屋です」\n\n' +
-      '「少しお疲れのようですね。今日のところは、ゆっくりお休みください」\n' +
-      '「お部屋は自由に使ってくださって構いません。夕方ごろには、わたしの方は少し仕事がありますので」\n\n' +
-      'シスターはふと真剣な顔になり、天井の方を見上げた。\n\n' +
+    text: [
+      'シスターに案内されたのは、二つのベッドが並ぶ小さな個室だった。',
+      '「狭い教会ですから、しばらくはこのお部屋を一緒に使っていただくことになります」',
+      '「では、{playerCallName}、こちらのお部屋です」',
+      '「少しお疲れのようですね。今日のところは、ゆっくりお休みください」\n「お部屋は自由に使ってくださって構いません。夕方ごろには、わたしの方は少し仕事がありますので」',
+      'シスターはふと真剣な顔になり、天井の方を見上げた。',
       '「――ひとつだけ。屋根裏部屋には、入ってはなりませんよ」',
-    // ここでは「休む」のみを表示する
+    ],
     choices: [{ label: '休む', next: 'sleep1' }],
   },
+  {
+    id: 'attic_fire',
+    location: '屋根裏部屋',
+    angelExpression: 'shocked',
+    angelStatus: '倒れたろうそくのそばに座り込んでいる',
+    logText: '火を消し止めた。',
+    text: [
+      '重い扉を開けると、そこには信じられない光景が広がっていた。',
+      'ほとんど白く、先端だけが黒く染まった大きな翼を広げたシスターが、床に座り込んでいる。倒れたろうそくから、小さな火が布に燃え移りかけていた。部屋の中央には、見たこともない魔法陣が淡く光っている。',
+      '考えるより先に、あなたは駆け寄って火を踏み消していた。',
+    ],
+    choices: [{ label: '（……）', next: 'angel_confession' }],
+  },
+  {
+    id: 'meal_event',
+    location: '台所',
+    angelExpression: 'surprised',
+    angelStatus: '驚きつつも、少し嬉しそうにしている',
+    relationChange: 1,
+    logText: '手料理を振る舞った。',
+    text: [
+      'あなたは、それ以上深くは尋ねなかった。かわりに台所へ向かい、有り合わせの材料で温かい食事を作ることにした。',
+      '「え……わたしのために、ですか？」',
+      '差し出された皿に、シスター――天使様は驚いたように瞬きをした後、ふわりと表情を緩めた。',
+      '「{playerCallName}、怖くはないのですか。翼を見ても」\n「いいえ、あまり」とあなたが答えると、天使様は少しだけ肩の力を抜いたようだった。',
+      '他愛のない会話をしながら、二人は同じ食卓を囲んだ。名前も知らなかった相手との距離が、ほんの少しだけ縮まった夜だった。',
+    ],
+    choices: [{ label: '（……）', next: 'night_care' }],
+  },
+];
+
+const sceneDefinitions = [
   {
     id: 'noise_wake',
     timeSlot: 'night',
@@ -260,20 +290,6 @@ const sceneDefinitions = [
     ],
   },
   {
-    id: 'attic_fire',
-    location: '屋根裏部屋',
-    angelExpression: 'shocked',
-    angelStatus: '倒れたろうそくのそばに座り込んでいる',
-    logText: '火を消し止めた。',
-    text:
-      '重い扉を開けると、そこには信じられない光景が広がっていた。\n\n' +
-      'ほとんど白く、先端だけが黒く染まった大きな翼を広げたシスターが、床に座り込んでいる。\n' +
-      '倒れたろうそくから、小さな火が布に燃え移りかけていた。\n' +
-      '部屋の中央には、見たこともない魔法陣が淡く光っている。\n\n' +
-      '考えるより先に、あなたは駆け寄って火を踏み消していた。',
-    choices: [{ label: '（……）', next: 'angel_confession' }],
-  },
-  {
     id: 'angel_confession',
     location: '屋根裏部屋',
     angelExpression: 'sad',
@@ -290,24 +306,6 @@ const sceneDefinitions = [
       '「少し……疲れが溜まっていたようです。それで、翼がろうそくに触れてしまったのでしょう」\n\n' +
       '短い沈黙が、部屋に降りる。',
     choices: [{ label: '（……）', next: 'meal_event' }],
-  },
-  {
-    id: 'meal_event',
-    location: '台所',
-    angelExpression: 'surprised',
-    angelStatus: '驚きつつも、少し嬉しそうにしている',
-    relationChange: 1,
-    logText: '手料理を振る舞った。',
-    text:
-      'あなたは、それ以上深くは尋ねなかった。\n' +
-      'かわりに台所へ向かい、有り合わせの材料で温かい食事を作ることにした。\n\n' +
-      '「え……わたしのために、ですか？」\n\n' +
-      '差し出された皿に、シスター――天使様は驚いたように瞬きをした後、ふわりと表情を緩めた。\n\n' +
-      '「{playerCallName}、怖くはないのですか。翼を見ても」\n' +
-      '「いいえ、あまり」とあなたが答えると、天使様は少しだけ肩の力を抜いたようだった。\n\n' +
-      '他愛のない会話をしながら、二人は同じ食卓を囲んだ。\n' +
-      '名前も知らなかった相手との距離が、ほんの少しだけ縮まった夜だった。',
-    choices: [{ label: '（……）', next: 'night_care' }],
   },
   {
     id: 'night_care',
@@ -795,6 +793,26 @@ function clampStats() {
     const [min, max] = statsRange[key];
     gameState.stats[key] = Math.min(max, Math.max(min, gameState.stats[key]));
   });
+  const marginMax =
+    typeof gameState.stats.mentalMarginMax === 'number' &&
+    Number.isFinite(gameState.stats.mentalMarginMax)
+      ? gameState.stats.mentalMarginMax
+      : statsDefault.mentalMarginMax;
+  gameState.stats.mentalMargin = Math.min(
+    marginMax,
+    Math.max(0, gameState.stats.mentalMargin)
+  );
+}
+
+function normalizeLoadedStats(loadedStats) {
+  const merged = Object.assign({}, statsDefault, loadedStats || {});
+  if (
+    typeof merged.mentalMarginMax !== 'number' ||
+    !Number.isFinite(merged.mentalMarginMax)
+  ) {
+    merged.mentalMarginMax = statsDefault.mentalMarginMax;
+  }
+  return merged;
 }
 
 function formatStatDelta(key, delta) {
@@ -974,6 +992,10 @@ function applyTalkStats() {
   applyStatChanges(actionLabels.talk, { trust: 2 }, { actionCountKey: 'talk' });
 }
 
+function applySleepRecoveryStats() {
+  applyStatChanges('就寝', { mentalMargin: 2 });
+}
+
 function applyNightCareStats() {
   const changes = { trust: 1, angelFatigue: -1, mentalMargin: -1 };
   if (gameState.stats.mentalMargin >= 7) {
@@ -1144,6 +1166,7 @@ function enterNightCare() {
 function onNightCareContinue() {
   addLog('静かに眠りについた。');
   gameState.pendingNightCareId = null;
+  applySleepRecoveryStats();
 
   if (gameState.day >= 3) {
     showEndingScreen();
@@ -1155,7 +1178,6 @@ function onNightCareContinue() {
   gameState.freeStep = 'select';
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
-  gameState.lastStatusChangeComment = '';
   gameState.currentLocation = '個室';
   render();
 }
@@ -1286,7 +1308,9 @@ function renderStatusTexts() {
   changeList.innerHTML = '';
   // 「今回の変化」は常に1文だけ表示する（抽選は applyStatChanges 側で1回だけ行う）
   const showComment =
-    (gameState.freeStep === 'result' || gameState.freeStep === 'night_care') &&
+    (gameState.freeStep === 'result' ||
+      gameState.freeStep === 'night_care' ||
+      gameState.freeStep === 'select') &&
     !!gameState.lastStatusChangeComment;
   if (!showComment) return;
 
@@ -1338,7 +1362,7 @@ function renderOpening() {
   } else {
     setMessage(scene.text);
   }
-  if (scene.inputCallName) {
+  if (scene.inputCallName || scene.type === 'callNameInput') {
     renderCallNameInput();
     return;
   }
@@ -1479,7 +1503,7 @@ function loadGame() {
     const fresh = createInitialState();
     gameState = Object.assign(fresh, loaded, {
       memoryFlags: Object.assign({}, memoryFlagsDefault, loaded.memoryFlags || {}),
-      stats: Object.assign({}, statsDefault, loaded.stats || {}),
+      stats: normalizeLoadedStats(loaded.stats),
       actionCounts: Object.assign({}, actionCountsDefault, loaded.actionCounts || {}),
       lastStatChanges: loaded.lastStatChanges || null,
       lastStatusChangeComment:
@@ -1496,6 +1520,7 @@ function loadGame() {
       pendingCallNameNext: null,
       log: loaded.log || [],
     });
+    clampStats();
     render();
     showToast('ロードしました。');
     return true;
@@ -1562,118 +1587,381 @@ function getScenarioDataSafe() {
     : {};
 }
 
-function buildScenarioListText() {
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatScenarioPreviewText(text) {
+  if (text === undefined || text === null || text === '') return '（なし）';
+  if (Array.isArray(text)) return text.join('\n');
+  return String(text);
+}
+
+function appendScenarioField(lines, label, value) {
+  if (value === undefined || value === null || value === '') return;
+  lines.push(`${label}: ${value}`);
+}
+
+function appendScenarioChoices(lines, choices) {
+  if (!Array.isArray(choices) || choices.length === 0) return;
+  lines.push('');
+  lines.push('選択肢：');
+  choices.forEach((choice) => {
+    let line = `- ${choice.label || '(labelなし)'}`;
+    if (choice.next) line += ` → ${choice.next}`;
+    if (choice.id) line += ` [id: ${choice.id}]`;
+    lines.push(line);
+    if (choice.setFlags) lines.push(`  setFlags: ${JSON.stringify(choice.setFlags)}`);
+    if (choice.logText) lines.push(`  logText: ${choice.logText}`);
+    if (choice.resultText !== undefined) {
+      lines.push('  resultText:');
+      formatScenarioPreviewText(choice.resultText)
+        .split('\n')
+        .forEach((row) => lines.push(`    ${row}`));
+    }
+  });
+}
+
+function buildOpeningSceneDetail(scene) {
+  const lines = [`## openingScenes / ${scene.id || '(idなし)'}`, ''];
+  appendScenarioField(lines, 'id', scene.id);
+  appendScenarioField(lines, 'type', scene.type || (scene.inputCallName ? 'callNameInput' : 'scene'));
+  appendScenarioField(lines, 'timeSlot', scene.timeSlot);
+  appendScenarioField(lines, 'location', scene.location);
+  appendScenarioField(lines, 'angelExpression', scene.angelExpression);
+  appendScenarioField(lines, 'angelStatus', scene.angelStatus);
+  appendScenarioField(lines, 'logText', scene.logText);
+  appendScenarioField(lines, 'next', scene.next);
+  if (scene.setFlags) lines.push(`setFlags: ${JSON.stringify(scene.setFlags)}`);
+  if (scene.relationChange) lines.push(`relationChange: ${scene.relationChange}`);
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(scene.text));
+  appendScenarioChoices(lines, scene.choices);
+  return lines.join('\n');
+}
+
+function buildFreeActionDetail(actionKey) {
   const data = getScenarioDataSafe();
-  const lines = ['シナリオ一覧', ''];
+  const action = (data.freeActionTexts || {})[actionKey];
+  const lines = [`## freeActionTexts / ${actionKey}`, ''];
+  if (!action) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  Object.keys(action).forEach((variantKey) => {
+    const block = action[variantKey];
+    lines.push(`[${variantKey}]`);
+    appendScenarioField(lines, 'location', block.location);
+    appendScenarioField(lines, 'angelExpression', block.angelExpression);
+    appendScenarioField(lines, 'angelStatus', block.angelStatus);
+    lines.push('');
+    lines.push('本文：');
+    lines.push(formatScenarioPreviewText(block.text));
+    lines.push('');
+  });
+  return lines.join('\n').trimEnd();
+}
+
+function buildNightEventDetail(eventId) {
+  const data = getScenarioDataSafe();
+  const event = (data.nightEvents || []).find((entry) => entry.id === eventId);
+  const lines = [`## nightEvents / ${eventId}`, ''];
+  if (!event) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  appendScenarioField(lines, 'id', event.id);
+  appendScenarioField(lines, 'day', event.day);
+  appendScenarioField(lines, 'location', event.location);
+  appendScenarioField(lines, 'angelExpression', event.angelExpression);
+  appendScenarioField(lines, 'angelStatus', event.angelStatus);
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(event.text));
+  if (event.textVariants && typeof event.textVariants === 'object') {
+    lines.push('');
+    lines.push('textVariants:');
+    Object.keys(event.textVariants).forEach((key) => {
+      lines.push(`  [${key}]`);
+      formatScenarioPreviewText(event.textVariants[key])
+        .split('\n')
+        .forEach((row) => lines.push(`    ${row}`));
+    });
+  }
+  appendScenarioChoices(lines, event.choices);
+  return lines.join('\n');
+}
+
+function buildNightCareDetail(eventId) {
+  const data = getScenarioDataSafe();
+  const event = (data.nightCareEvents || []).find((entry) => entry.id === eventId);
+  const lines = [`## nightCareEvents / ${eventId}`, ''];
+  if (!event) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  appendScenarioField(lines, 'id', event.id);
+  appendScenarioField(lines, 'day', event.day);
+  appendScenarioField(lines, 'phase', event.phase);
+  appendScenarioField(lines, 'priority', event.priority);
+  appendScenarioField(lines, 'location', event.location);
+  appendScenarioField(lines, 'angelExpression', event.angelExpression);
+  appendScenarioField(lines, 'angelStatus', event.angelStatus);
+  if (event.relationChange !== undefined) lines.push(`relationChange: ${event.relationChange}`);
+  if (event.setFlags) lines.push(`setFlags: ${JSON.stringify(event.setFlags)}`);
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(event.text));
+  return lines.join('\n');
+}
+
+function buildEndingDetail(endingKey) {
+  const data = getScenarioDataSafe();
+  const entry = (data.endingTexts || {})[endingKey];
+  const lines = [`## endingTexts / ${endingKey}`, ''];
+  if (!entry) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  appendScenarioField(lines, 'id', entry.id);
+  appendScenarioField(lines, 'title', entry.title);
+  appendScenarioField(lines, 'conditionLabel', entry.conditionLabel);
+  appendScenarioField(lines, 'choiceLabel', entry.choiceLabel);
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(entry.text));
+  return lines.join('\n');
+}
+
+function buildCallNameReactionDetail(index) {
+  const data = getScenarioDataSafe();
+  const reaction = (data.callNameReactions || [])[index];
+  const lines = [`## callNameReactions / ${index + 1}`, ''];
+  if (!reaction) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  appendScenarioField(lines, 'type', reaction.type);
+  appendScenarioField(lines, 'word', reaction.word);
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(reaction.text));
+  return lines.join('\n');
+}
+
+function buildStatusTextsDetail(statKey) {
+  const data = getScenarioDataSafe();
+  const tiers = (data.statusTexts || {})[statKey];
+  const lines = [`## statusTexts / ${statKey}`, ''];
+  if (!Array.isArray(tiers) || tiers.length === 0) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  tiers.forEach((tier) => {
+    lines.push(`- max ${tier.max}: ${tier.text}`);
+  });
+  return lines.join('\n');
+}
+
+function buildStatusChangeTextsDetail(statKey) {
+  const data = getScenarioDataSafe();
+  const dirs = (data.statusChangeTexts || {})[statKey];
+  const lines = [`## statusChangeTexts / ${statKey}`, ''];
+  if (!dirs || typeof dirs !== 'object') {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  ['up', 'down'].forEach((dir) => {
+    if (!Array.isArray(dirs[dir]) || dirs[dir].length === 0) return;
+    lines.push(`[${dir}]`);
+    dirs[dir].forEach((text) => lines.push(`- ${text}`));
+    lines.push('');
+  });
+  return lines.join('\n').trimEnd();
+}
+
+function showScenarioDetail(category, id) {
+  if (!debugVisible) return;
+  let text = '';
+  switch (category) {
+    case 'openingScenes': {
+      const scene = (getScenarioDataSafe().openingScenes || []).find((entry) => entry.id === id);
+      text = scene ? buildOpeningSceneDetail(scene) : `## openingScenes / ${id}\n\n（データなし）`;
+      break;
+    }
+    case 'freeActionTexts':
+      text = buildFreeActionDetail(id);
+      break;
+    case 'nightEvents':
+      text = buildNightEventDetail(id);
+      break;
+    case 'nightCareEvents':
+      text = buildNightCareDetail(id);
+      break;
+    case 'endingTexts':
+      text = buildEndingDetail(id);
+      break;
+    case 'callNameReactions':
+      text = buildCallNameReactionDetail(Number(id));
+      break;
+    case 'statusTexts':
+      text = buildStatusTextsDetail(id);
+      break;
+    case 'statusChangeTexts':
+      text = buildStatusChangeTextsDetail(id);
+      break;
+    default:
+      text = `（未対応カテゴリ: ${category}）`;
+  }
+  const panel = document.getElementById('scenario-detail-panel');
+  const content = document.getElementById('scenario-detail-content');
+  if (!panel || !content) return;
+  content.textContent = text;
+  panel.classList.remove('hidden');
+}
+
+function renderScenarioListItem(category, id, label) {
+  return (
+    `<li><button type="button" class="scenario-list-item" ` +
+    `data-scenario-category="${escapeHtml(category)}" data-scenario-id="${escapeHtml(id)}">` +
+    `${escapeHtml(label)}</button></li>`
+  );
+}
+
+function renderScenarioList() {
+  const content = document.getElementById('scenario-list-content');
+  if (!content) return;
+
+  const data = getScenarioDataSafe();
+  const parts = ['<p class="scenario-list-title">シナリオ一覧</p>'];
 
   const opening = Array.isArray(data.openingScenes) ? data.openingScenes : [];
-  lines.push(`- openingScenes：${opening.length}件`);
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">openingScenes：${opening.length}件</p><ul class="scenario-list-items">`);
   opening.forEach((scene) => {
-    lines.push(`  - ${scene && scene.id ? scene.id : '(idなし)'}`);
+    parts.push(renderScenarioListItem('openingScenes', scene.id || '', scene.id || '(idなし)'));
   });
-  lines.push('');
+  parts.push('</ul></div>');
 
   const freeActionTexts =
     data.freeActionTexts && typeof data.freeActionTexts === 'object'
       ? data.freeActionTexts
       : {};
   const freeKeys = Object.keys(freeActionTexts);
-  lines.push(`- freeActionTexts：${freeKeys.length}アクション`);
-  freeKeys.forEach((key) => lines.push(`  - ${key}`));
-  lines.push('');
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">freeActionTexts：${freeKeys.length}アクション</p><ul class="scenario-list-items">`);
+  freeKeys.forEach((key) => parts.push(renderScenarioListItem('freeActionTexts', key, key)));
+  parts.push('</ul></div>');
 
   const nightEvents = Array.isArray(data.nightEvents) ? data.nightEvents : [];
-  lines.push(`- nightEvents：${nightEvents.length}件`);
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">nightEvents：${nightEvents.length}件</p><ul class="scenario-list-items">`);
   nightEvents.forEach((event) => {
-    lines.push(`  - ${event && event.id ? event.id : '(idなし)'}`);
+    parts.push(renderScenarioListItem('nightEvents', event.id || '', event.id || '(idなし)'));
   });
-  lines.push('');
+  parts.push('</ul></div>');
 
   const nightCareEvents = Array.isArray(data.nightCareEvents) ? data.nightCareEvents : [];
-  lines.push(`- nightCareEvents：${nightCareEvents.length}件`);
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">nightCareEvents：${nightCareEvents.length}件</p><ul class="scenario-list-items">`);
   nightCareEvents.forEach((event) => {
-    lines.push(`  - ${event && event.id ? event.id : '(idなし)'}`);
+    parts.push(renderScenarioListItem('nightCareEvents', event.id || '', event.id || '(idなし)'));
   });
-  lines.push('');
+  parts.push('</ul></div>');
 
   const endingTexts =
     data.endingTexts && typeof data.endingTexts === 'object' ? data.endingTexts : {};
   const endingKeys = Object.keys(endingTexts);
-  lines.push(`- endingTexts：${endingKeys.length}件`);
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">endingTexts：${endingKeys.length}件</p><ul class="scenario-list-items">`);
   endingKeys.forEach((key) => {
     const entry = endingTexts[key];
-    lines.push(`  - ${entry && entry.id ? entry.id : key}`);
+    const label = entry && entry.id ? entry.id : key;
+    parts.push(renderScenarioListItem('endingTexts', key, label));
   });
-  lines.push('');
+  parts.push('</ul></div>');
 
   const callNameReactions = Array.isArray(data.callNameReactions)
     ? data.callNameReactions
     : [];
-  lines.push(`- callNameReactions：${callNameReactions.length}件`);
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">callNameReactions：${callNameReactions.length}件</p><ul class="scenario-list-items">`);
   callNameReactions.forEach((reaction, index) => {
     const label =
       reaction && reaction.word
         ? `${reaction.type || 'type'}:${reaction.word}`
         : `reaction_${index + 1}`;
-    lines.push(`  - ${label}`);
+    parts.push(renderScenarioListItem('callNameReactions', String(index), label));
   });
-  lines.push('');
+  parts.push('</ul></div>');
 
   const statusTexts =
     data.statusTexts && typeof data.statusTexts === 'object' ? data.statusTexts : {};
   const statusKeys = Object.keys(statusTexts);
-  lines.push(`- statusTexts：${statusKeys.length}パラメータ`);
-  statusKeys.forEach((key) => lines.push(`  - ${key}`));
-  lines.push('');
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">statusTexts：${statusKeys.length}パラメータ</p><ul class="scenario-list-items">`);
+  statusKeys.forEach((key) => parts.push(renderScenarioListItem('statusTexts', key, key)));
+  parts.push('</ul></div>');
 
   const statusChangeTexts =
     data.statusChangeTexts && typeof data.statusChangeTexts === 'object'
       ? data.statusChangeTexts
       : {};
   const statusChangeKeys = Object.keys(statusChangeTexts);
-  lines.push(`- statusChangeTexts：${statusChangeKeys.length}パラメータ`);
-  statusChangeKeys.forEach((key) => lines.push(`  - ${key}`));
-  lines.push('');
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">statusChangeTexts：${statusChangeKeys.length}パラメータ</p><ul class="scenario-list-items">`);
+  statusChangeKeys.forEach((key) => parts.push(renderScenarioListItem('statusChangeTexts', key, key)));
+  parts.push('</ul></div>');
 
   const statLabels =
     data.statLabels && typeof data.statLabels === 'object' ? data.statLabels : {};
   const statLabelKeys = Object.keys(statLabels);
-  lines.push(`- statLabels：${statLabelKeys.length}件`);
-  statLabelKeys.forEach((key) => lines.push(`  - ${key}`));
-  lines.push('');
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">statLabels：${statLabelKeys.length}件</p><ul class="scenario-list-items">`);
+  statLabelKeys.forEach((key) => parts.push(`<li>${escapeHtml(key)}</li>`));
+  parts.push('</ul></div>');
 
   const actionLabels =
     data.actionLabels && typeof data.actionLabels === 'object' ? data.actionLabels : {};
   const actionLabelKeys = Object.keys(actionLabels);
-  lines.push(`- actionLabels：${actionLabelKeys.length}件`);
-  actionLabelKeys.forEach((key) => lines.push(`  - ${key}`));
-  lines.push('');
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">actionLabels：${actionLabelKeys.length}件</p><ul class="scenario-list-items">`);
+  actionLabelKeys.forEach((key) => parts.push(`<li>${escapeHtml(key)}</li>`));
+  parts.push('</ul></div>');
 
   const timeSlotLabels =
     data.timeSlotLabels && typeof data.timeSlotLabels === 'object'
       ? data.timeSlotLabels
       : {};
   const timeSlotLabelKeys = Object.keys(timeSlotLabels);
-  lines.push(`- timeSlotLabels：${timeSlotLabelKeys.length}件`);
-  timeSlotLabelKeys.forEach((key) => lines.push(`  - ${key}`));
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">timeSlotLabels：${timeSlotLabelKeys.length}件</p><ul class="scenario-list-items">`);
+  timeSlotLabelKeys.forEach((key) => parts.push(`<li>${escapeHtml(key)}</li>`));
+  parts.push('</ul></div>');
 
-  return lines.join('\n');
+  content.innerHTML = parts.join('');
+}
+
+function setScenarioDetailVisible(visible) {
+  const panel = document.getElementById('scenario-detail-panel');
+  if (panel) panel.classList.toggle('hidden', !visible);
+}
+
+function onScenarioListClick(event) {
+  const button = event.target.closest('[data-scenario-category]');
+  if (!button) return;
+  showScenarioDetail(button.dataset.scenarioCategory, button.dataset.scenarioId);
 }
 
 function setScenarioListVisible(visible) {
   const panel = document.getElementById('scenario-list-panel');
   if (panel) panel.classList.toggle('hidden', !visible);
+  if (!visible) setScenarioDetailVisible(false);
 }
 
 function toggleScenarioList() {
   if (!debugVisible) return;
   const panel = document.getElementById('scenario-list-panel');
-  const content = document.getElementById('scenario-list-content');
-  if (!panel || !content) return;
+  if (!panel) return;
 
   const willShow = panel.classList.contains('hidden');
   if (willShow) {
-    content.textContent = buildScenarioListText();
+    renderScenarioList();
+    setScenarioDetailVisible(false);
   }
   setScenarioListVisible(willShow);
 }
@@ -1710,6 +1998,7 @@ function wireButtons() {
   document.getElementById('btn-debug-toggle').addEventListener('click', toggleDebug);
   document.getElementById('btn-debug-op-skip').addEventListener('click', debugSkipToDay2Morning);
   document.getElementById('btn-debug-scenario-list').addEventListener('click', toggleScenarioList);
+  document.getElementById('scenario-list-content').addEventListener('click', onScenarioListClick);
 
   document.getElementById('btn-ending-title').addEventListener('click', () => {
     showScreen('title');
