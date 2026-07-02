@@ -77,6 +77,35 @@ const FALLBACK_FREE_ACTION_TEXT = 'あなたは静かに時間を過ごした。
 const freeActionTexts =
   (window.SCENARIO_DATA && window.SCENARIO_DATA.freeActionTexts) || {};
 
+// 自由行動の時間帯導入文（編集: scenario-data.js の SCENARIO_DATA.slotIntroTexts）
+const DEFAULT_SLOT_INTRO_TEXT = '静かな時間が流れている。\n\nさて、何をしよう。';
+
+const FALLBACK_SLOT_INTRO_TEXTS = {
+  'day2-morning':
+    '小さな鳥の声で、あなたは目を覚ます。\n' +
+    '窓の外では、夏の終わりの風が葉を揺らしていた。\n\n' +
+    '隣のベッドはすでに空だった。天使様は、もう朝の支度を始めているようだ。\n\n' +
+    '――さて、今日は何をしよう。',
+  'day2-noon':
+    '陽が高くなり、教会の中も少し暖まってきた。\n' +
+    '天使様は静かに祈りの本を読んでいるようだ。\n\n' +
+    '昼のひとときを、どう過ごそうか。',
+  'day3-morning':
+    '三日目の朝。\n' +
+    'もうすっかり、この部屋の静けさにも慣れてきたような気がする。\n\n' +
+    '隣のベッドで、天使様が小さく伸びをしていた。',
+  'day3-noon':
+    '今日も変わらず、静かな時間が流れている。\n' +
+    '遠くで鐘の音が響いた。\n\n' +
+    '昼の時間を、どう過ごそうか。',
+};
+
+const slotIntroTexts = Object.assign(
+  {},
+  FALLBACK_SLOT_INTRO_TEXTS,
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.slotIntroTexts) || {}
+);
+
 // 状態文・雰囲気文（編集: scenario-data.js の SCENARIO_DATA.statusTexts）
 const FALLBACK_STATUS_TEXT = '（状態不明）';
 
@@ -146,122 +175,16 @@ const actionDefinitions = [
 ];
 
 /* ---------------------- 固定オープニング（1日目） ---------------------- */
-// 各シーンは id / text / location / angelExpression / angelStatus /
-// choices（next, setFlags, relationChange, logText を持てる） / setFlags /
-// relationChange / timeSlot / logText を持つ。
-// 本文の一部は scenario-data.js の openingScenes から取得（id で解決、未移行はここに残す）。
+// 本文・演出: scenario-data.js の openingScenes（id で解決）
+// 分岐・setFlags・callback・進行: 下記 sceneDefinitions（同一 id で openingScenes とマージ）
 const openingScenes =
   (window.SCENARIO_DATA && window.SCENARIO_DATA.openingScenes) || [];
 
-const FALLBACK_OPENING_SCENES = [
-  {
-    id: 'arrival',
-    timeSlot: 'noon',
-    location: '教会前',
-    angelExpression: 'tired',
-    angelStatus: '少し疲れた様子で出迎えてくれた',
-    logText: '辺境の教会に到着した。',
-    text: [
-      '夏の終わりが近い、よく晴れた昼過ぎ。乗合馬車を降りた先には、辺境の小さな教会が建っていた。',
-      '大教会からの辞令を手に、あなたはひとりで戸を叩く。しばらくして、木の扉がゆっくりと開いた。',
-      '「――いらっしゃい。待っていました」',
-      '出迎えてくれたシスターは柔らかく微笑んだが、その声にはどこか疲れがにじんでいるように感じた。',
-    ],
-    choices: [{ label: '教会の中へ入る', next: 'ask_call_name' }],
-  },
-  {
-    id: 'sleep1',
-    location: '個室',
-    angelExpression: 'soft',
-    angelStatus: '静かに部屋を出ていった',
-    logText: '眠りについた。',
-    text: [
-      '長旅の疲れもあって、あなたは大人しく従うことにした。ベッドに横になり、静かに目を閉じる。',
-      '木の軋む音、遠くの鳥の声、風が窓を撫でる音。辺境の教会には、大教会にはなかった静けさがあった。',
-      'いつの間にか、あなたは眠りに落ちていた。',
-    ],
-    choices: [{ label: '（……）', next: 'noise_wake' }],
-  },
-  {
-    id: 'bridge_to_attic',
-    location: '個室',
-    logText: '屋根裏部屋の異変が気になった。',
-    text: [
-      '迷っているうちにも、物音は止まない。胸騒ぎを覚えたあなたは、結局、音のした屋根裏部屋へと向かうことにした。',
-    ],
-    choices: [{ label: '（……）', next: 'attic_fire' }],
-  },
-  {
-    id: 'ask_call_name',
-    type: 'callNameInput',
-    location: '教会・廊下',
-    angelExpression: 'soft',
-    angelStatus: '静かにこちらを見ている',
-    next: 'guide_room',
-    text: [
-      '扉の向こうで、シスターが少しだけ足を止めた。',
-      '「――失礼です。あなたのことは、何とお呼びすればよいですか」',
-      '短い間ののち、穏やかな視線がこちらに向けられる。',
-    ],
-  },
-  {
-    id: 'guide_room',
-    location: '個室',
-    angelExpression: 'tired',
-    angelStatus: '部屋の説明をしてくれている',
-    logText: '個室に案内された。',
-    text: [
-      'シスターに案内されたのは、二つのベッドが並ぶ小さな個室だった。',
-      '「狭い教会ですから、しばらくはこのお部屋を一緒に使っていただくことになります」',
-      '「では、{playerCallName}、こちらのお部屋です」',
-      '「少しお疲れのようですね。今日のところは、ゆっくりお休みください」\n「お部屋は自由に使ってくださって構いません。夕方ごろには、わたしの方は少し仕事がありますので」',
-      'シスターはふと真剣な顔になり、天井の方を見上げた。',
-      '「――ひとつだけ。屋根裏部屋には、入ってはなりませんよ」',
-    ],
-    choices: [{ label: '休む', next: 'sleep1' }],
-  },
-  {
-    id: 'attic_fire',
-    location: '屋根裏部屋',
-    angelExpression: 'shocked',
-    angelStatus: '倒れたろうそくのそばに座り込んでいる',
-    logText: '火を消し止めた。',
-    text: [
-      '重い扉を開けると、そこには信じられない光景が広がっていた。',
-      'ほとんど白く、先端だけが黒く染まった大きな翼を広げたシスターが、床に座り込んでいる。倒れたろうそくから、小さな火が布に燃え移りかけていた。部屋の中央には、見たこともない魔法陣が淡く光っている。',
-      '考えるより先に、あなたは駆け寄って火を踏み消していた。',
-    ],
-    choices: [{ label: '（……）', next: 'angel_confession' }],
-  },
-  {
-    id: 'meal_event',
-    location: '台所',
-    angelExpression: 'surprised',
-    angelStatus: '驚きつつも、少し嬉しそうにしている',
-    relationChange: 1,
-    logText: '手料理を振る舞った。',
-    text: [
-      'あなたは、それ以上深くは尋ねなかった。かわりに台所へ向かい、有り合わせの材料で温かい食事を作ることにした。',
-      '「え……わたしのために、ですか？」',
-      '差し出された皿に、シスター――天使様は驚いたように瞬きをした後、ふわりと表情を緩めた。',
-      '「{playerCallName}、怖くはないのですか。翼を見ても」\n「いいえ、あまり」とあなたが答えると、天使様は少しだけ肩の力を抜いたようだった。',
-      '他愛のない会話をしながら、二人は同じ食卓を囲んだ。名前も知らなかった相手との距離が、ほんの少しだけ縮まった夜だった。',
-    ],
-    choices: [{ label: '（……）', next: 'night_care' }],
-  },
-];
-
+// 分岐・setFlags・ゲーム進行ロジックを持つオープニングシーン。
+// 本文は scenario-data.js の openingScenes に置く。ここに text を残す場合は例外理由をコメントすること。
 const sceneDefinitions = [
   {
     id: 'noise_wake',
-    timeSlot: 'night',
-    location: '個室',
-    logText: '小さな物音で目を覚ました。',
-    text:
-      '――小さな悲鳴と、何かが倒れるような物音で目を覚ます。\n\n' +
-      '音は、どうやら天井の方――屋根裏部屋の辺りから聞こえたようだった。\n' +
-      '入ってはならないと言われたばかりの、あの場所から。\n\n' +
-      'あなたはベッドの上で、一瞬迷った。',
     choices: [
       {
         label: '屋根裏部屋へ向かう',
@@ -291,20 +214,8 @@ const sceneDefinitions = [
   },
   {
     id: 'angel_confession',
-    location: '屋根裏部屋',
-    angelExpression: 'sad',
-    angelStatus: '観念したような表情をしている',
     setFlags: { angel_revealed: true },
     relationChange: 1,
-    logText: 'シスターが天使であることを知った。',
-    text:
-      '火が消えたのを確かめてから、あなたはようやく振り返る。\n' +
-      '揺れるろうそくの灯りの中、白と黒の翼を持つシスターと、目が合った。\n\n' +
-      '「……見られてしまいましたね」\n\n' +
-      'シスターは小さく息をつき、静かに話し始めた。\n\n' +
-      '「わたしは、天使です。大昔からこの土地を見守り、日々祈りを捧げることで、世界の均衡を保ってきました」\n' +
-      '「少し……疲れが溜まっていたようです。それで、翼がろうそくに触れてしまったのでしょう」\n\n' +
-      '短い沈黙が、部屋に降りる。',
     choices: [{ label: '（……）', next: 'meal_event' }],
   },
   {
@@ -312,7 +223,7 @@ const sceneDefinitions = [
     relationChange: 1,
     setFlags: { first_night_care_done: true },
     logText: '天使様の疲れを労った。',
-    // 表示文・演出は scenario-data.js の night_care_d1_opening から取得
+    // 表示文・演出は nightCareEvents の night_care_d1_opening から取得（enterScene / renderOpening）
     choices: [{ label: '2日目の朝へ', next: 'FREE_START' }],
   },
 ];
@@ -331,36 +242,25 @@ function normalizeOpeningScene(scene) {
   });
 }
 
-function findOpeningScene(sceneId) {
-  const fromData = openingScenes.find((s) => s.id === sceneId);
-  if (fromData) return normalizeOpeningScene(fromData);
-  const fromApp = sceneDefinitions.find((s) => s.id === sceneId);
-  if (fromApp) return fromApp;
-  const fromFallback = FALLBACK_OPENING_SCENES.find((s) => s.id === sceneId);
-  if (fromFallback) return normalizeOpeningScene(fromFallback);
-  return null;
+function mergeOpeningSceneDataAndLogic(dataScene, appScene) {
+  if (!dataScene && !appScene) return null;
+  if (!dataScene) return appScene;
+  if (!appScene) return normalizeOpeningScene(dataScene);
+  const merged = Object.assign({}, dataScene, appScene);
+  if (dataScene.text !== undefined) {
+    merged.text = dataScene.text;
+  }
+  return normalizeOpeningScene(merged);
 }
 
-/* ---------------------- 自由行動：時間帯ごとの導入文 ---------------------- */
-const slotIntroTexts = {
-  'day2-morning':
-    '小さな鳥の声で、あなたは目を覚ます。\n' +
-    '窓の外では、夏の終わりの風が葉を揺らしていた。\n\n' +
-    '隣のベッドはすでに空だった。天使様は、もう朝の支度を始めているようだ。\n\n' +
-    '――さて、今日は何をしよう。',
-  'day2-noon':
-    '陽が高くなり、教会の中も少し暖まってきた。\n' +
-    '天使様は静かに祈りの本を読んでいるようだ。\n\n' +
-    '昼のひとときを、どう過ごそうか。',
-  'day3-morning':
-    '三日目の朝。\n' +
-    'もうすっかり、この部屋の静けさにも慣れてきたような気がする。\n\n' +
-    '隣のベッドで、天使様が小さく伸びをしていた。',
-  'day3-noon':
-    '今日も変わらず、静かな時間が流れている。\n' +
-    '遠くで鐘の音が響いた。\n\n' +
-    '昼の時間を、どう過ごそうか。',
-};
+function findOpeningScene(sceneId) {
+  const fromData = openingScenes.find((s) => s.id === sceneId);
+  const fromApp = sceneDefinitions.find((s) => s.id === sceneId);
+  if (fromData || fromApp) {
+    return mergeOpeningSceneDataAndLogic(fromData, fromApp);
+  }
+  return null;
+}
 
 /* ---------------------- 自由行動イベント ---------------------- */
 // id / day / timeSlot / action / priority / condition / setFlags / relationChange
@@ -582,7 +482,7 @@ function getOpeningNightCareEvent() {
 
 function getOpeningNightCareText() {
   const entry = getOpeningNightCareEvent();
-  return entry && entry.text ? entry.text : FALLBACK_OPENING_NIGHT_CARE_TEXT;
+  return entry && entry.text ? joinParagraphs(entry.text) : FALLBACK_OPENING_NIGHT_CARE_TEXT;
 }
 
 function applyOpeningNightCareDisplay(entry) {
@@ -731,7 +631,7 @@ function startFreePhase() {
 
 function getSlotIntroText() {
   const key = `day${gameState.day}-${gameState.timeSlot}`;
-  return slotIntroTexts[key] || '静かな時間が流れている。\n\nさて、何をしよう。';
+  return slotIntroTexts[key] || DEFAULT_SLOT_INTRO_TEXT;
 }
 
 function findFreeActionEvent(day, timeSlot, action) {
@@ -754,6 +654,21 @@ function formatFreeActionTextBlock(block) {
   return FALLBACK_FREE_ACTION_TEXT;
 }
 
+function freeActionTextVariantKey(day, timeSlot) {
+  if (day == null || !timeSlot) return null;
+  return `d${day}_${timeSlot}`;
+}
+
+function resolveFreeActionTextBlock(action, day, timeSlot) {
+  const actionTexts = freeActionTexts[action];
+  if (!actionTexts) return null;
+  const variantKey = freeActionTextVariantKey(day, timeSlot);
+  if (variantKey && actionTexts[variantKey]) {
+    return actionTexts[variantKey];
+  }
+  return actionTexts.default || null;
+}
+
 function getFreeActionDisplay(entry) {
   if (!entry) {
     return { text: FALLBACK_FREE_ACTION_TEXT };
@@ -766,7 +681,9 @@ function getFreeActionDisplay(entry) {
       angelStatus: entry.angelStatus,
     };
   }
-  const block = (freeActionTexts[entry.action] || {}).default;
+  const day = entry.day != null ? entry.day : gameState.day;
+  const timeSlot = entry.timeSlot || gameState.timeSlot;
+  const block = resolveFreeActionTextBlock(entry.action, day, timeSlot);
   if (!block) {
     return { text: FALLBACK_FREE_ACTION_TEXT };
   }
@@ -1407,7 +1324,7 @@ function renderFree() {
       : null;
     setMessage(
       entry
-        ? entry.text
+        ? joinParagraphs(entry.text)
         : '就寝前、天使様の肩をそっとほぐした。\n\n「……お休みなさい」'
     );
     renderChoiceButtons([{ label: '就寝する', onClick: onNightCareContinue }]);

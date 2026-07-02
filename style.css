@@ -483,10 +483,63 @@ button {
 }
 
 .scenario-list-content {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+
+.scenario-list-title {
+  margin: 0 0 8px;
+  font-weight: bold;
+  color: var(--color-ink);
+}
+
+.scenario-list-section {
+  margin-bottom: 10px;
+}
+
+.scenario-list-section-title {
+  margin: 0 0 4px;
+  color: var(--color-wood-dark);
+}
+
+.scenario-list-items {
+  margin: 0;
+  padding: 0 0 0 1.2em;
+  list-style: disc;
+}
+
+.scenario-list-item {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.scenario-list-item:hover {
+  color: var(--color-wood-dark);
+}
+
+.scenario-detail-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8f4ea;
+  border: 1px solid var(--color-wood-dark);
+  border-radius: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.scenario-detail-content {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   line-height: 1.55;
   color: var(--color-ink);
 }
