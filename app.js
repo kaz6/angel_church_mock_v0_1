@@ -70,6 +70,18 @@ const DEFAULT_CALL_NAME = 'あなた';
 const callNameReactions =
   (window.SCENARIO_DATA && window.SCENARIO_DATA.callNameReactions) || [];
 
+// 自由行動の結果テキスト（編集: scenario-data.js の SCENARIO_DATA.freeActionTexts）
+const FALLBACK_FREE_ACTION_TEXT = 'あなたは静かに時間を過ごした。';
+
+const freeActionTexts =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.freeActionTexts) || {};
+
+// 状態文・雰囲気文（編集: scenario-data.js の SCENARIO_DATA.statusTexts）
+const FALLBACK_STATUS_TEXT = '（状態不明）';
+
+const statusTexts =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.statusTexts) || {};
+
 // memoryFlags 初期値
 const memoryFlagsDefault = {
   angel_revealed: false,
@@ -288,22 +300,10 @@ const sceneDefinitions = [
   },
   {
     id: 'night_care',
-    location: '個室',
-    angelExpression: 'sleepy',
-    angelStatus: 'ベッドに腰掛け、少し気を抜いている',
     relationChange: 1,
     setFlags: { first_night_care_done: true },
     logText: '天使様の疲れを労った。',
-    text:
-      '食事を終え、二人は個室に戻った。\n' +
-      '天使様は、二つ並んだベッドのうちひとつに、静かに腰を下ろす。\n\n' +
-      '「明日もあるのですから、そろそろ休みましょう」\n\n' +
-      '「――その前に、少しだけ疲れを取りましょう」\n' +
-      'あなたはそう言って、天使様の肩や手にそっと触れ、凝りをほぐすように優しく揉みほぐした。\n\n' +
-      '天使様は目を細め、されるがままになっていた。\n' +
-      'やがて満足したように小さく息を吐くと、そのまま静かに眠りに落ちていった。\n\n' +
-      '――その日から、二人の生活が始まったのでした。',
-    // next: 'FREE_START' は自由行動フェーズへの移行を示す特別な値
+    // 表示文・演出は scenario-data.js の night_care_d1_opening から取得
     choices: [{ label: '2日目の朝へ', next: 'FREE_START' }],
   },
 ];
@@ -330,156 +330,87 @@ const slotIntroTexts = {
 };
 
 /* ---------------------- 自由行動イベント ---------------------- */
-// id / day / timeSlot / action / priority / condition / text / setFlags /
-// relationChange / angelExpression / angelStatus / location
+// id / day / timeSlot / action / priority / condition / setFlags / relationChange
+// 表示文・演出は scenario-data.js の freeActionTexts から取得。
+// 条件分岐など callback 用の個別テキストだけ、ここに text を残す。
 const freeActionEvents = [
   // --- 家事をする ---
   {
     id: 'chores_d2_morning', day: 2, timeSlot: 'morning', action: 'chores', priority: 10,
-    text:
-      '洗濯物を裏庭に干していると、天使様がそっと手伝いに来てくれた。\n\n' +
-      '「こういう、地に足のついたことは苦手で……助かります」\n\n' +
-      '二人でシーツを広げていると、いつもより会話が弾んだ。',
     setFlags: { helped_church: true }, relationChange: 1,
-    angelExpression: 'grateful', angelStatus: '家事を手伝ってくれて嬉しそう', location: '裏庭',
   },
   {
     id: 'chores_d2_noon', day: 2, timeSlot: 'noon', action: 'chores', priority: 10,
-    text:
-      '埃の溜まった棚を拭き、ろうそくの替えを揃える。\n' +
-      '地味だけれど、教会の暮らしにはこうした積み重ねが要るのだと分かってきた。\n\n' +
-      '天使様は「ずいぶんきれいになりましたね」と、珍しく声を弾ませた。',
     setFlags: { helped_church: true }, relationChange: 1,
-    angelExpression: 'pleased', angelStatus: '部屋が整って満足げ', location: '礼拝堂',
   },
   {
     id: 'chores_d3_morning', day: 3, timeSlot: 'morning', action: 'chores', priority: 10,
-    text:
-      '食器を洗い、朝食の片付けをする。\n' +
-      '水の音だけが響く、静かな時間。\n\n' +
-      '天使様が横で布巾を持ち、なんとなく一緒に手伝ってくれた。',
     setFlags: { helped_church: true }, relationChange: 1,
-    angelExpression: 'soft', angelStatus: '静かに手伝ってくれている', location: '台所',
   },
   {
     id: 'chores_d3_noon', day: 3, timeSlot: 'noon', action: 'chores', priority: 10,
-    text:
-      '床を掃き、窓を拭く。木の床は磨くほどに艶を取り戻していく。\n\n' +
-      '「この教会も、あなたが来てから少し明るくなった気がします」\n' +
-      '天使様がぽつりと呟いた。',
     setFlags: { helped_church: true }, relationChange: 1,
-    angelExpression: 'warm', angelStatus: '嬉しそうに微笑んでいる', location: '礼拝堂',
   },
   {
     id: 'chores_fallback', action: 'chores', priority: 1,
-    text: 'ふと目についた家事を片付ける。地味だけれど、心が落ち着く時間だった。',
     setFlags: { helped_church: true }, relationChange: 1,
-    angelExpression: 'soft', angelStatus: '穏やかな様子でいる', location: '個室',
   },
 
   // --- 祈る ---
   {
     id: 'pray_d2_morning', day: 2, timeSlot: 'morning', action: 'pray', priority: 10,
-    text:
-      '天使様に倣って、朝の短い祈りに付き合う。\n' +
-      '言葉の意味はよく分からないが、静かに手を合わせる時間は、悪くないと思えた。',
     setFlags: { prayed_with_angel: true }, relationChange: 1,
-    angelExpression: 'calm', angelStatus: '朝の祈りに集中している', location: '祈りの間',
   },
   {
     id: 'pray_d2_noon', day: 2, timeSlot: 'noon', action: 'pray', priority: 10,
-    text:
-      '祈りの間、蝋を整えたり、小さな雑用で天使様の仕事を手伝う。\n\n' +
-      '「こういう手伝いは、初めてです」と天使様は少し照れたように言った。',
     setFlags: { prayed_with_angel: true }, relationChange: 1,
-    angelExpression: 'shy', angelStatus: '少し照れくさそう', location: '祈りの間',
   },
   {
     id: 'pray_d3_morning', day: 3, timeSlot: 'morning', action: 'pray', priority: 10,
-    text:
-      '並んで祈りを捧げる時間にも、少しずつ慣れてきた。\n' +
-      'ふと、自分の中にある小さな痛みのことを、静かに見つめ直す。',
     setFlags: { prayed_with_angel: true }, relationChange: 1,
-    angelExpression: 'gentle', angelStatus: '静かに寄り添ってくれている', location: '祈りの間',
   },
   {
     id: 'pray_d3_noon', day: 3, timeSlot: 'noon', action: 'pray', priority: 10,
-    text:
-      '天使様の祈りを、少し離れた場所からそっと見守る。\n' +
-      '横顔はどこまでも静かで、けれど確かに疲れの色があった。',
     setFlags: { prayed_with_angel: true }, relationChange: 1,
-    angelExpression: 'tired', angelStatus: '祈りの疲れが見える', location: '祈りの間',
   },
   {
     id: 'pray_fallback', action: 'pray', priority: 1,
-    text: '静かに手を合わせ、少しだけ祈りの真似事をしてみる。',
     setFlags: { prayed_with_angel: true }, relationChange: 1,
-    angelExpression: 'calm', angelStatus: '穏やかな様子でいる', location: '個室',
   },
 
   // --- 休む ---
   {
     id: 'rest_d2_morning', day: 2, timeSlot: 'morning', action: 'rest', priority: 10,
-    text:
-      '特に何をするでもなく、ベッドに腰掛けてぼんやり過ごす。\n' +
-      '外から、夏の終わりを告げる虫の声が聞こえてくる。\n\n' +
-      '何もしない時間も、悪くないと思えた。',
     setFlags: { rested_in_room: true }, relationChange: 1,
-    angelExpression: 'soft', angelStatus: 'そっと見守ってくれている', location: '個室',
   },
   {
     id: 'rest_d2_noon', day: 2, timeSlot: 'noon', action: 'rest', priority: 10,
-    text:
-      '窓辺に座り、風にあたりながら目を閉じる。\n' +
-      '天使様がふと隣に腰を下ろし、同じ風を感じているようだった。',
     setFlags: { rested_in_room: true }, relationChange: 1,
-    angelExpression: 'calm', angelStatus: '隣で同じ風を感じている', location: '個室',
   },
   {
     id: 'rest_d3_morning', day: 3, timeSlot: 'morning', action: 'rest', priority: 10,
-    text:
-      '少しの間、何も考えずに横になる。\n' +
-      '天井の木目を眺めていると、自然と肩の力が抜けていく。',
     setFlags: { rested_in_room: true }, relationChange: 1,
-    angelExpression: 'gentle', angelStatus: '穏やかな表情をしている', location: '個室',
   },
   {
     id: 'rest_d3_noon', day: 3, timeSlot: 'noon', action: 'rest', priority: 10,
-    text:
-      '静かな部屋で、ただ時間が過ぎるのに任せる。\n' +
-      '天使様が時折こちらを見ていることに、なんとなく気づいていた。',
     setFlags: { rested_in_room: true }, relationChange: 1,
-    angelExpression: 'warm', angelStatus: '時折こちらを見ている', location: '個室',
   },
   {
     id: 'rest_fallback', action: 'rest', priority: 1,
-    text: '目を閉じ、何もしない時間をただ過ごす。',
     setFlags: { rested_in_room: true }, relationChange: 1,
-    angelExpression: 'soft', angelStatus: '穏やかな様子でいる', location: '個室',
   },
 
   // --- 話しかける ---
   {
     id: 'talk_d2_morning', day: 2, timeSlot: 'morning', action: 'talk', priority: 10,
-    text:
-      '「大教会では、どんなお仕事を？」\n' +
-      '天使様に問われ、ぽつりぽつりと自分のことを話す。\n\n' +
-      '左遷同然の派遣だということは、なんとなく伏せておいた。',
     setFlags: { talked_with_angel: true }, relationChange: 1,
-    angelExpression: 'curious', angelStatus: '話に耳を傾けている', location: '個室',
   },
   {
     id: 'talk_d2_noon', day: 2, timeSlot: 'noon', action: 'talk', priority: 10,
-    text:
-      '天使様に、この土地のことを尋ねてみる。\n\n' +
-      '「大昔から、ずっとここに？」\n' +
-      '「ええ。人も、景色も、少しずつ変わっていくのを見てきました」\n' +
-      'そう語る横顔は、どこか遠い目をしていた。',
     setFlags: { talked_with_angel: true }, relationChange: 1,
-    angelExpression: 'nostalgic', angelStatus: '昔を思い出しているよう', location: '個室',
   },
   {
-    // 2日目に話しかけていた場合、天使様が覚えていてくれる分岐
+    // 2日目に話しかけていた場合、天使様が覚えていてくれる分岐（callback）
     id: 'talk_d3_morning_remember', day: 3, timeSlot: 'morning', action: 'talk', priority: 10,
     condition: (state) => state.memoryFlags.talked_with_angel,
     text:
@@ -491,92 +422,101 @@ const freeActionEvents = [
   },
   {
     id: 'talk_d3_morning_first', day: 3, timeSlot: 'morning', action: 'talk', priority: 5,
-    text:
-      '天使様に、故郷のことを少しだけ話してみる。\n\n' +
-      '「そう、なのですね」\n' +
-      '短い返事だったけれど、静かに耳を傾けてくれているのが伝わってきた。',
     setFlags: { talked_with_angel: true }, relationChange: 1,
-    angelExpression: 'warm', angelStatus: '静かに耳を傾けている', location: '個室',
   },
   {
     id: 'talk_d3_noon', day: 3, timeSlot: 'noon', action: 'talk', priority: 10,
-    text:
-      '「{playerCallName}、辺境に来て、まだ三日ですのに」\n' +
-      '天使様がふと笑った。\n' +
-      '「もう随分と、長く一緒にいるような気がします」\n\n' +
-      'その言葉に、あなたも小さく頷いた。',
     setFlags: { talked_with_angel: true }, relationChange: 1,
-    angelExpression: 'happy', angelStatus: '柔らかく笑っている', location: '個室',
   },
   {
     id: 'talk_fallback', action: 'talk', priority: 1,
-    text: '他愛のないことを、少しだけ話してみる。',
     setFlags: { talked_with_angel: true }, relationChange: 1,
-    angelExpression: 'warm', angelStatus: '穏やかな様子でいる', location: '個室',
   },
 ];
 
 /* ---------------------- 夜の強制イベント（2日目夜 / 3日目夜） ---------------------- */
+// 本文・選択肢ラベル・選択後テキスト・表情・状態文・場所は
+// scenario-data.js の SCENARIO_DATA.nightEvents（day で一致）から取得する。
+// ここ（app.js）に残すのは、日ごとの setFlags / relationChange 等の「処理」のみ。
 const forcedNightEvents = {
   2: {
     id: 'pain_event',
-    location: '個室',
-    angelExpression: 'concerned',
-    angelStatus: '心配そうにこちらを見ている',
     relationChange: 1,
-    text:
-      '夜、ろうそくの灯りの下で、天使様がふと手を止めてこちらを見た。\n\n' +
-      '「――ここへ来る前から、あまり眠れていなかったのですか？」\n\n' +
-      '静かな声だった。責めるようではなく、ただ気づかったふうに。',
-    choices: [
-      { label: '少しだけ', setFlags: { pain_tired: true }, logText: '「少しだけ」と答えた。' },
-      { label: '大丈夫です', setFlags: { hide_pain: true }, logText: '「大丈夫です」と答えた。' },
-    ],
   },
   3: {
     id: 'remembered_event',
-    location: '個室',
-    angelExpression: 'gentle',
-    angelStatus: '静かにこちらを見つめている',
     setFlags: { remembered_by_angel: true },
     relationChange: 1,
-    continueLabel: '（……）',
-    textFn: (flags) => {
-      const intro = '夜、眠りにつく前。天使様が、ふと思い出したように口を開いた。\n\n';
-      if (flags.pain_tired) {
-        return (
-          intro +
-          '「昨夜、少しだけ眠れていないと仰っていましたね」\n' +
-          '天使様は静かにそう言うと、あなたの隣にそっと腰を下ろした。\n' +
-          '「今夜は、ゆっくり眠れるといいのですが」'
-        );
-      }
-      if (flags.hide_pain) {
-        return (
-          intro +
-          '「大丈夫だと仰っていましたけれど……無理をなさる癖が、おありのようですね」\n' +
-          '天使様は少し困ったように、けれど優しく笑った。\n' +
-          '「わたしには、少しくらい頼ってくださって構いませんよ」'
-        );
-      }
-      return (
-        intro +
-        '「あなたは、思っていたよりずっと頑張り屋さんのようですね」\n' +
-        '天使様は静かにそう言って、微笑んだ。'
-      );
-    },
   },
 };
 
-const painAfterTexts = {
-  tired:
-    '「そう、ですか」\n' +
-    '天使様は小さく頷き、それ以上は何も言わなかった。ただ、少しだけ布団を整えてくれた。',
-  hide:
-    '「……そうですか」\n' +
-    '天使様は少し寂しそうな、それでいて何かを察したような顔をした。\n\n' +
-    '「無理は、なさらないでくださいね」',
+// 選択肢 id → memoryFlags 処理（id の意味づけは app.js 側で解釈する）
+const nightEventChoiceFlags = {
+  admit_tired: { pain_tired: true },
+  hide_tired: { hide_pain: true },
 };
+
+const nightEventChoiceLogLabels = {
+  admit_tired: '「少しだけ」と答えた。',
+  hide_tired: '「大丈夫です」と答えた。',
+};
+
+// scenario-data.js が読み込まれていない場合の最低限フォールバック
+const nightEvents =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.nightEvents) || [];
+
+const NIGHT_EVENT_FALLBACK = {
+  id: 'night_event_fallback',
+  day: null,
+  location: '個室',
+  angelExpression: 'normal',
+  angelStatus: '静かに戻ってきた',
+  text: [
+    '夜、天使様が部屋へ戻ってきた。',
+    '短い会話を交わしたあと、二人は就寝前の時間へ移った。',
+  ],
+  choices: [
+    {
+      id: 'continue',
+      label: '続ける',
+      resultText: ['静かな時間が流れた。'],
+    },
+  ],
+};
+
+function joinParagraphs(value) {
+  if (Array.isArray(value)) return value.join('\n\n');
+  if (typeof value === 'string') return value;
+  return '';
+}
+
+function findNightEvent(day) {
+  return nightEvents.find((e) => e.day === day) || null;
+}
+
+function getNightEventDisplay(day) {
+  return findNightEvent(day) || NIGHT_EVENT_FALLBACK;
+}
+
+// day3 のように、同じ夜イベントでも memoryFlags によって続く一文が変わる場合、
+// どの variant を使うかは app.js 側（callback の判定）で決める。
+function getNightEventText(scenarioEvent) {
+  const base = joinParagraphs(scenarioEvent.text);
+  if (!scenarioEvent.textVariants) return base;
+  const variantKey = gameState.memoryFlags.pain_tired
+    ? 'pain_tired'
+    : gameState.memoryFlags.hide_pain
+      ? 'hide_pain'
+      : 'default';
+  const variantText = joinParagraphs(scenarioEvent.textVariants[variantKey]);
+  return variantText ? `${base}\n\n${variantText}` : base;
+}
+
+function getNightEventChoices(scenarioEvent) {
+  return scenarioEvent.choices && scenarioEvent.choices.length
+    ? scenarioEvent.choices
+    : NIGHT_EVENT_FALLBACK.choices;
+}
 
 /* ---------------------- 毎晩ケア（2日目以降・自由行動の夜） ---------------------- */
 // 会話追加: scenario-data.js の SCENARIO_DATA.nightCareEvents に
@@ -584,8 +524,40 @@ const painAfterTexts = {
 // id / day / priority / condition / text / location / angelExpression / angelStatus /
 // setFlags / relationChange
 // scenario-data.js が読み込まれていない場合の最低限フォールバック（該当なし扱い）
+const OPENING_NIGHT_CARE_ID = 'night_care_d1_opening';
+
+const FALLBACK_OPENING_NIGHT_CARE_TEXT =
+  '食事を終え、二人は個室に戻った。\n' +
+  '天使様は、二つ並んだベッドのうちひとつに、静かに腰を下ろす。\n\n' +
+  '「明日もあるのですから、そろそろ休みましょう」\n\n' +
+  '「――その前に、少しだけ疲れを取りましょう」\n' +
+  'あなたはそう言って、天使様の肩や手にそっと触れ、凝りをほぐすように優しく揉みほぐした。\n\n' +
+  '天使様は目を細め、されるがままになっていた。\n' +
+  'やがて満足したように小さく息を吐くと、そのまま静かに眠りに落ちていった。\n\n' +
+  '――その日から、二人の生活が始まったのでした。';
+
 const nightCareEvents =
   (window.SCENARIO_DATA && window.SCENARIO_DATA.nightCareEvents) || [];
+
+function findNightCareEventById(id) {
+  return nightCareEvents.find((e) => e.id === id) || null;
+}
+
+function getOpeningNightCareEvent() {
+  return findNightCareEventById(OPENING_NIGHT_CARE_ID);
+}
+
+function getOpeningNightCareText() {
+  const entry = getOpeningNightCareEvent();
+  return entry && entry.text ? entry.text : FALLBACK_OPENING_NIGHT_CARE_TEXT;
+}
+
+function applyOpeningNightCareDisplay(entry) {
+  if (!entry) return;
+  if (entry.location) gameState.currentLocation = entry.location;
+  if (entry.angelExpression) gameState.angelExpression = entry.angelExpression;
+  if (entry.angelStatus) gameState.angelStatus = entry.angelStatus;
+}
 
 /* -------------------------------------------------------------------------
    2. gameState と状態遷移ロジック
@@ -600,6 +572,7 @@ function createInitialState() {
     freeStep: null, // 'select' | 'result' | 'forced' | 'forced_after' | 'night_care'
     pendingAction: null,
     pendingEntryId: null,
+    pendingForcedChoiceId: null,
     pendingNightCareId: null,
     nightCareCount: 0,
     careStyle: 'default',
@@ -652,10 +625,14 @@ function enterScene(sceneId) {
   const scene = sceneDefinitions.find((s) => s.id === sceneId);
   if (!scene) return;
   gameState.currentSceneId = sceneId;
-  if (scene.location) gameState.currentLocation = scene.location;
+  if (sceneId === 'night_care') {
+    applyOpeningNightCareDisplay(getOpeningNightCareEvent());
+  } else {
+    if (scene.location) gameState.currentLocation = scene.location;
+    if (scene.angelExpression) gameState.angelExpression = scene.angelExpression;
+    if (scene.angelStatus) gameState.angelStatus = scene.angelStatus;
+  }
   if (scene.timeSlot) gameState.timeSlot = scene.timeSlot;
-  if (scene.angelExpression) gameState.angelExpression = scene.angelExpression;
-  if (scene.angelStatus) gameState.angelStatus = scene.angelStatus;
   if (scene.setFlags) Object.assign(gameState.memoryFlags, scene.setFlags);
   if (scene.relationChange) gameState.relationStage += scene.relationChange;
   if (!gameState.seenEventIds.includes(sceneId)) gameState.seenEventIds.push(sceneId);
@@ -736,6 +713,37 @@ function findFreeActionEvent(day, timeSlot, action) {
   return candidates[0];
 }
 
+function formatFreeActionTextBlock(block) {
+  if (!block || block.text === undefined) return FALLBACK_FREE_ACTION_TEXT;
+  if (Array.isArray(block.text)) return block.text.join('\n\n');
+  if (typeof block.text === 'string') return block.text;
+  return FALLBACK_FREE_ACTION_TEXT;
+}
+
+function getFreeActionDisplay(entry) {
+  if (!entry) {
+    return { text: FALLBACK_FREE_ACTION_TEXT };
+  }
+  if (entry.text) {
+    return {
+      text: entry.text,
+      location: entry.location,
+      angelExpression: entry.angelExpression,
+      angelStatus: entry.angelStatus,
+    };
+  }
+  const block = (freeActionTexts[entry.action] || {}).default;
+  if (!block) {
+    return { text: FALLBACK_FREE_ACTION_TEXT };
+  }
+  return {
+    text: formatFreeActionTextBlock(block),
+    location: block.location,
+    angelExpression: block.angelExpression,
+    angelStatus: block.angelStatus,
+  };
+}
+
 const actionLogLabels = {
   chores: '家事をした。',
   pray: '祈りを捧げた。',
@@ -772,6 +780,29 @@ function formatActionCountsForDebug(counts) {
     labeled[actionLabels[key] || key] = counts[key];
   });
   return labeled;
+}
+
+function getStatusText(statKey, value) {
+  const tiers = statusTexts[statKey];
+  if (!tiers || tiers.length === 0) {
+    return FALLBACK_STATUS_TEXT;
+  }
+  for (let i = 0; i < tiers.length; i++) {
+    if (value <= tiers[i].max) {
+      return tiers[i].text;
+    }
+  }
+  return tiers[tiers.length - 1].text;
+}
+
+function formatStatusTextsForDebug(stats) {
+  return {
+    trust: getStatusText('trust', stats.trust),
+    prayerTuning: getStatusText('prayerTuning', stats.prayerTuning),
+    caretakerAptitude: getStatusText('caretakerAptitude', stats.caretakerAptitude),
+    mentalMargin: getStatusText('mentalMargin', stats.mentalMargin),
+    angelFatigue: getStatusText('angelFatigue', stats.angelFatigue),
+  };
 }
 
 function formatChangesText(changes) {
@@ -893,11 +924,12 @@ function onActionButtonClick(actionId) {
   const entry = findFreeActionEvent(gameState.day, gameState.timeSlot, actionId);
   gameState.pendingEntryId = entry ? entry.id : null;
   if (entry) {
+    const display = getFreeActionDisplay(entry);
     if (entry.setFlags) Object.assign(gameState.memoryFlags, entry.setFlags);
     if (entry.relationChange) gameState.relationStage += entry.relationChange;
-    if (entry.angelExpression) gameState.angelExpression = entry.angelExpression;
-    if (entry.angelStatus) gameState.angelStatus = entry.angelStatus;
-    if (entry.location) gameState.currentLocation = entry.location;
+    if (display.angelExpression) gameState.angelExpression = display.angelExpression;
+    if (display.angelStatus) gameState.angelStatus = display.angelStatus;
+    if (display.location) gameState.currentLocation = display.location;
     const key = `free_${gameState.day}_${gameState.timeSlot}_${actionId}`;
     if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
   }
@@ -940,10 +972,12 @@ function advanceTime() {
 
 function enterForcedNightEvent() {
   const fe = forcedNightEvents[gameState.day];
+  const scenarioEvent = getNightEventDisplay(gameState.day);
   gameState.freeStep = 'forced';
-  gameState.currentLocation = fe.location || '個室';
-  if (fe.angelExpression) gameState.angelExpression = fe.angelExpression;
-  if (fe.angelStatus) gameState.angelStatus = fe.angelStatus;
+  gameState.pendingForcedChoiceId = null;
+  gameState.currentLocation = scenarioEvent.location || '個室';
+  if (scenarioEvent.angelExpression) gameState.angelExpression = scenarioEvent.angelExpression;
+  if (scenarioEvent.angelStatus) gameState.angelStatus = scenarioEvent.angelStatus;
   if (fe.setFlags) Object.assign(gameState.memoryFlags, fe.setFlags);
   if (fe.relationChange) gameState.relationStage += fe.relationChange;
 
@@ -957,28 +991,32 @@ function enterForcedNightEvent() {
   render();
 }
 
+// 選択肢の id は app.js 側で解釈する（memoryFlags 処理・ログ・進行判定）。
+// resultText を持たない選択肢（例: 3日目「（……）」）は、結果表示を挟まず夜ケアへ進む。
 function onForcedChoiceClick(choice) {
-  if (choice.setFlags) Object.assign(gameState.memoryFlags, choice.setFlags);
-  if (choice.logText) addLog(choice.logText);
-  gameState.freeStep = 'forced_after';
-  render();
-}
+  if (nightEventChoiceFlags[choice.id]) {
+    Object.assign(gameState.memoryFlags, nightEventChoiceFlags[choice.id]);
+  }
+  if (nightEventChoiceLogLabels[choice.id]) addLog(nightEventChoiceLogLabels[choice.id]);
 
-function getPainAfterText() {
-  return gameState.memoryFlags.pain_tired ? painAfterTexts.tired : painAfterTexts.hide;
+  if (choice.resultText) {
+    gameState.pendingForcedChoiceId = choice.id;
+    gameState.freeStep = 'forced_after';
+    render();
+  } else {
+    enterNightCare();
+  }
 }
 
 function onForcedAfterContinue() {
-  enterNightCare();
-}
-
-function onForcedSingleContinue() {
+  gameState.pendingForcedChoiceId = null;
   enterNightCare();
 }
 
 function findNightCareEvent(day) {
   const candidates = nightCareEvents.filter(
     (e) =>
+      e.countsAsRoutine !== false &&
       (e.day === undefined || e.day === day) &&
       (!e.condition || e.condition(gameState))
   );
@@ -1156,7 +1194,11 @@ function renderOpening() {
   }
   const scene = sceneDefinitions.find((s) => s.id === gameState.currentSceneId);
   if (!scene) return;
-  setMessage(scene.text);
+  if (scene.id === 'night_care') {
+    setMessage(getOpeningNightCareText());
+  } else {
+    setMessage(scene.text);
+  }
   if (scene.inputCallName) {
     renderCallNameInput();
     return;
@@ -1180,21 +1222,20 @@ function renderFree() {
     const entry = gameState.pendingEntryId
       ? freeActionEvents.find((e) => e.id === gameState.pendingEntryId)
       : null;
-    setMessage(entry ? entry.text : '（特に変わったことはなかった。）');
+    setMessage(getFreeActionDisplay(entry).text);
     renderChoiceButtons([{ label: '続ける', onClick: onResultContinueClick }]);
   } else if (gameState.freeStep === 'forced') {
     hideActionBox();
-    const fe = forcedNightEvents[gameState.day];
-    const text = fe.textFn ? fe.textFn(gameState.memoryFlags) : fe.text;
-    setMessage(text);
-    if (fe.choices) {
-      renderChoiceButtons(fe.choices.map((c) => ({ label: c.label, onClick: () => onForcedChoiceClick(c) })));
-    } else {
-      renderChoiceButtons([{ label: fe.continueLabel || '続ける', onClick: onForcedSingleContinue }]);
-    }
+    const scenarioEvent = getNightEventDisplay(gameState.day);
+    setMessage(getNightEventText(scenarioEvent));
+    const choices = getNightEventChoices(scenarioEvent);
+    renderChoiceButtons(choices.map((c) => ({ label: c.label, onClick: () => onForcedChoiceClick(c) })));
   } else if (gameState.freeStep === 'forced_after') {
     hideActionBox();
-    setMessage(getPainAfterText());
+    const scenarioEvent = getNightEventDisplay(gameState.day);
+    const choices = getNightEventChoices(scenarioEvent);
+    const choice = choices.find((c) => c.id === gameState.pendingForcedChoiceId);
+    setMessage(choice ? joinParagraphs(choice.resultText) : '');
     renderChoiceButtons([{ label: '続ける', onClick: onForcedAfterContinue }]);
   } else if (gameState.freeStep === 'night_care') {
     hideActionBox();
@@ -1235,6 +1276,7 @@ function renderDebug() {
     playerCallName: gameState.playerCallName,
     effectiveCallName: getPlayerCallName(),
     stats: formatStatsForDebug(gameState.stats),
+    statusTexts: formatStatusTextsForDebug(gameState.stats),
     actionCounts: formatActionCountsForDebug(gameState.actionCounts),
     lastStatChanges: gameState.lastStatChanges,
     statChangeLog: gameState.statChangeLog,
@@ -1306,6 +1348,7 @@ function loadGame() {
       careStyle: loaded.careStyle || 'default',
       playerCallName: loaded.playerCallName != null ? loaded.playerCallName : '',
       pendingNightCareId: loaded.pendingNightCareId || null,
+      pendingForcedChoiceId: loaded.pendingForcedChoiceId || null,
       callNameReactionText: null,
       pendingCallNameNext: null,
       log: loaded.log || [],
