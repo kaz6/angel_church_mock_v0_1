@@ -62,6 +62,12 @@
         <div id="action-buttons" class="action-buttons"></div>
       </div>
 
+      <div id="status-text-panel" class="status-text-panel hidden">
+        <p class="status-text-label">状態</p>
+        <ul id="status-text-list" class="status-text-list"></ul>
+        <ul id="status-change-list" class="status-change-list"></ul>
+      </div>
+
       <div class="control-row">
         <button id="btn-save" class="btn btn-small">セーブ</button>
         <button id="btn-load" class="btn btn-small">ロード</button>
@@ -71,6 +77,13 @@
 
       <div id="debug-panel" class="debug-panel hidden">
         <h3>デバッグ情報</h3>
+        <div class="debug-actions">
+          <button id="btn-debug-op-skip" class="btn btn-small">OPスキップ：2日目朝へ</button>
+          <button id="btn-debug-scenario-list" class="btn btn-small">シナリオ一覧</button>
+        </div>
+        <div id="scenario-list-panel" class="scenario-list-panel hidden">
+          <pre id="scenario-list-content" class="scenario-list-content"></pre>
+        </div>
         <pre id="debug-content"></pre>
       </div>
     </div>

@@ -1556,11 +1556,134 @@ function showToast(msg) {
 }
 
 /* デバッグ表示切替 */
+function getScenarioDataSafe() {
+  return window.SCENARIO_DATA && typeof window.SCENARIO_DATA === 'object'
+    ? window.SCENARIO_DATA
+    : {};
+}
+
+function buildScenarioListText() {
+  const data = getScenarioDataSafe();
+  const lines = ['シナリオ一覧', ''];
+
+  const opening = Array.isArray(data.openingScenes) ? data.openingScenes : [];
+  lines.push(`- openingScenes：${opening.length}件`);
+  opening.forEach((scene) => {
+    lines.push(`  - ${scene && scene.id ? scene.id : '(idなし)'}`);
+  });
+  lines.push('');
+
+  const freeActionTexts =
+    data.freeActionTexts && typeof data.freeActionTexts === 'object'
+      ? data.freeActionTexts
+      : {};
+  const freeKeys = Object.keys(freeActionTexts);
+  lines.push(`- freeActionTexts：${freeKeys.length}アクション`);
+  freeKeys.forEach((key) => lines.push(`  - ${key}`));
+  lines.push('');
+
+  const nightEvents = Array.isArray(data.nightEvents) ? data.nightEvents : [];
+  lines.push(`- nightEvents：${nightEvents.length}件`);
+  nightEvents.forEach((event) => {
+    lines.push(`  - ${event && event.id ? event.id : '(idなし)'}`);
+  });
+  lines.push('');
+
+  const nightCareEvents = Array.isArray(data.nightCareEvents) ? data.nightCareEvents : [];
+  lines.push(`- nightCareEvents：${nightCareEvents.length}件`);
+  nightCareEvents.forEach((event) => {
+    lines.push(`  - ${event && event.id ? event.id : '(idなし)'}`);
+  });
+  lines.push('');
+
+  const endingTexts =
+    data.endingTexts && typeof data.endingTexts === 'object' ? data.endingTexts : {};
+  const endingKeys = Object.keys(endingTexts);
+  lines.push(`- endingTexts：${endingKeys.length}件`);
+  endingKeys.forEach((key) => {
+    const entry = endingTexts[key];
+    lines.push(`  - ${entry && entry.id ? entry.id : key}`);
+  });
+  lines.push('');
+
+  const callNameReactions = Array.isArray(data.callNameReactions)
+    ? data.callNameReactions
+    : [];
+  lines.push(`- callNameReactions：${callNameReactions.length}件`);
+  callNameReactions.forEach((reaction, index) => {
+    const label =
+      reaction && reaction.word
+        ? `${reaction.type || 'type'}:${reaction.word}`
+        : `reaction_${index + 1}`;
+    lines.push(`  - ${label}`);
+  });
+  lines.push('');
+
+  const statusTexts =
+    data.statusTexts && typeof data.statusTexts === 'object' ? data.statusTexts : {};
+  const statusKeys = Object.keys(statusTexts);
+  lines.push(`- statusTexts：${statusKeys.length}パラメータ`);
+  statusKeys.forEach((key) => lines.push(`  - ${key}`));
+  lines.push('');
+
+  const statusChangeTexts =
+    data.statusChangeTexts && typeof data.statusChangeTexts === 'object'
+      ? data.statusChangeTexts
+      : {};
+  const statusChangeKeys = Object.keys(statusChangeTexts);
+  lines.push(`- statusChangeTexts：${statusChangeKeys.length}パラメータ`);
+  statusChangeKeys.forEach((key) => lines.push(`  - ${key}`));
+  lines.push('');
+
+  const statLabels =
+    data.statLabels && typeof data.statLabels === 'object' ? data.statLabels : {};
+  const statLabelKeys = Object.keys(statLabels);
+  lines.push(`- statLabels：${statLabelKeys.length}件`);
+  statLabelKeys.forEach((key) => lines.push(`  - ${key}`));
+  lines.push('');
+
+  const actionLabels =
+    data.actionLabels && typeof data.actionLabels === 'object' ? data.actionLabels : {};
+  const actionLabelKeys = Object.keys(actionLabels);
+  lines.push(`- actionLabels：${actionLabelKeys.length}件`);
+  actionLabelKeys.forEach((key) => lines.push(`  - ${key}`));
+  lines.push('');
+
+  const timeSlotLabels =
+    data.timeSlotLabels && typeof data.timeSlotLabels === 'object'
+      ? data.timeSlotLabels
+      : {};
+  const timeSlotLabelKeys = Object.keys(timeSlotLabels);
+  lines.push(`- timeSlotLabels：${timeSlotLabelKeys.length}件`);
+  timeSlotLabelKeys.forEach((key) => lines.push(`  - ${key}`));
+
+  return lines.join('\n');
+}
+
+function setScenarioListVisible(visible) {
+  const panel = document.getElementById('scenario-list-panel');
+  if (panel) panel.classList.toggle('hidden', !visible);
+}
+
+function toggleScenarioList() {
+  if (!debugVisible) return;
+  const panel = document.getElementById('scenario-list-panel');
+  const content = document.getElementById('scenario-list-content');
+  if (!panel || !content) return;
+
+  const willShow = panel.classList.contains('hidden');
+  if (willShow) {
+    content.textContent = buildScenarioListText();
+  }
+  setScenarioListVisible(willShow);
+}
+
 function toggleDebug() {
   debugVisible = !debugVisible;
   document.getElementById('debug-panel').classList.toggle('hidden', !debugVisible);
   document.getElementById('btn-debug-toggle').textContent = 'デバッグ表示 ' + (debugVisible ? 'ON' : 'OFF');
   renderStatusTexts();
+  if (!debugVisible) setScenarioListVisible(false);
   if (debugVisible) renderDebug();
 }
 
@@ -1586,6 +1709,7 @@ function wireButtons() {
   document.getElementById('btn-reset').addEventListener('click', resetGame);
   document.getElementById('btn-debug-toggle').addEventListener('click', toggleDebug);
   document.getElementById('btn-debug-op-skip').addEventListener('click', debugSkipToDay2Morning);
+  document.getElementById('btn-debug-scenario-list').addEventListener('click', toggleScenarioList);
 
   document.getElementById('btn-ending-title').addEventListener('click', () => {
     showScreen('title');

@@ -276,6 +276,60 @@ button {
   margin: 0;
 }
 
+.status-text-panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.status-text-label {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  color: var(--color-wood-dark);
+  letter-spacing: 0.04em;
+}
+
+.status-text-list {
+  margin: 0;
+  padding: 0 0 0 1.1em;
+  list-style: disc;
+}
+
+.status-text-list li {
+  font-size: 0.74rem;
+  color: var(--color-ink-soft);
+  line-height: 1.55;
+}
+
+.status-text-list li + li {
+  margin-top: 2px;
+}
+
+.status-change-list {
+  margin: 8px 0 0;
+  padding: 0 0 0 1.1em;
+  list-style: none;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 8px;
+}
+
+.status-change-list li {
+  font-size: 0.72rem;
+  color: var(--color-wood-dark);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.status-change-list li::before {
+  content: '› ';
+}
+
+.status-change-list li + li {
+  margin-top: 4px;
+}
+
 /* ---------- メインパネル ---------- */
 .main-panel {
   display: flex;
@@ -410,6 +464,30 @@ button {
 .debug-panel h3 {
   margin: 0 0 8px;
   font-size: 0.8rem;
+  color: var(--color-ink);
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scenario-list-panel {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #fffdf7;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.scenario-list-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.55;
   color: var(--color-ink);
 }
 
