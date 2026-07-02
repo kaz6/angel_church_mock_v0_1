@@ -171,7 +171,7 @@
 | 選択肢欄   | オープニング分岐、夜イベント、続ける                                                                                               |
 | 行動欄    | 自由行動フェーズのみ。「なにをしますか？」＋ 4 ボタン                                                                                     |
 | ログ欄    | `[N日目 時間帯] 短文` の履歴                                                                                               |
-| デバッグ   | `day`, `timeSlot`, `phase`, `relationStage`, `memoryFlags`, `seenEventIds`, `nightCareCount`, `seenNightCareIds` |
+| デバッグ   | `day`, `timeSlot`, `phase`, `relationStage`, `stats`, `memoryFlags`, `seenEventIds`, `nightCareCount`, `seenNightCareIds` 等。ON 時のみ「OPスキップ：2日目朝へ」ボタン（§デバッグ用OPスキップ） |
 
 
 
@@ -691,6 +691,36 @@ setFlags, relationChange
 
 
 
+---
+
+## デバッグ機能
+
+開発・検証用。本番プレイヤー向け機能ではない。
+
+- デバッグ表示 ON/OFF 切替ボタンでパネル表示
+- JSON 形式で `gameState` 主要フィールドを確認できる
+
+### デバッグ用OPスキップ
+
+デバッグ表示 ON 時のみ、「**OPスキップ：2日目朝へ**」ボタンを表示する。
+
+**目的**
+
+- 1 日目オープニングを毎回通さず、2 日目朝から自由行動・パラメータ変化・夜イベント・夜ケアを確認するため
+
+**仕様**
+
+- デバッグ表示 ON 時のみ表示する
+- デバッグ表示 OFF 時は表示しない
+- 押すと 2 日目朝の自由行動へ進む
+- 1 日目オープニング完了済み相当の状態にする
+- `playerCallName` が未設定なら「あなた」を使用する
+- `angel_revealed` / `first_night_care_done` など、2 日目朝に必要なフラグを設定する
+- `stats` / `actionCounts` は初期値のままでよい
+- 本番機能ではなく **開発補助機能** として扱う
+
+---
+
 ## 既知の保留項目
 
 
@@ -709,16 +739,57 @@ setFlags, relationChange
 
 ---
 
+## scenario-data.js の役割
 
+`scenario-data.js` は、制作者が後から編集しやすい **文章・表示データ** を管理する。`window.SCENARIO_DATA` として公開し、`index.html` では `app.js` より前に読み込む。
+
+### 現在管理しているもの
+
+| キー | 内容 |
+| --- | --- |
+| `callNameReactions` | 呼び名の特定ワード反応 |
+| `statLabels` | stats 表示ラベル |
+| `actionLabels` | 行動ボタン表示ラベル |
+| `timeSlotLabels` | 時間帯表示ラベル |
+| `statusTexts` | stats 値に応じた状態文・雰囲気文 |
+| `statusChangeTexts` | stats 増減時の雰囲気コメント（変化文） |
+| `freeActionTexts` | 自由行動の結果テキスト |
+| `nightCareEvents` | 毎晩ケア文（1 夜目オープニング含む） |
+| `nightEvents` | 夜の強制イベント本文・選択肢・選択後テキスト |
+
+### 今後追加予定
+
+- `endingTexts`
+- `openingTexts` の一部
+- 14 日版の夜イベント
+- 14 日版の自由行動テキスト
+- 14 日版のケア文
+
+### app.js に残すもの
+
+- `gameState`
+- stats 変動
+- `actionCounts`
+- `memoryFlags`
+- セーブ / ロード
+- 画面描画
+- 進行管理
+- 条件判定
+- callback
+
+外部化は **1 回 1 機能** で行い、大規模リファクタは避ける。詳細は `PROJECT_BRIEF.md` §10・§12 も参照。
+
+---
 
 ## 実装ファイル（参考）
 
 
-| ファイル         | 役割                     |
-| ------------ | ---------------------- |
-| `index.html` | 画面構造（タイトル / ゲーム / 終了）  |
-| `style.css`  | 教会風 UI                 |
-| `app.js`     | データ駆動ロジック。会話追加は主に以下を編集 |
+| ファイル              | 役割                                      |
+| ----------------- | --------------------------------------- |
+| `index.html`      | 画面構造（タイトル / ゲーム / 終了）                   |
+| `style.css`       | 教会風 UI                                  |
+| `scenario-data.js` | セリフ・イベント本文・表示ラベル・状態文・変化コメント（§scenario-data.js の役割） |
+| `app.js`          | 進行・状態管理・判定・保存・stats 処理。会話追加はデータとロジックを分担 |
 
 
 
@@ -726,13 +797,26 @@ setFlags, relationChange
 ### app.js の編集ポイント
 
 ```
-sceneDefinitions     … 1 日目固定シーン（会話追加・初回 night_care）
+sceneDefinitions     … 1 日目固定シーン（会話追加・初回 night_care。本文の一部は scenario-data.js へ移行中）
 slotIntroTexts       … 自由行動の時間帯導入
 freeActionEvents     … 朝/昼の行動反応（day, timeSlot, action, priority, condition）
-forcedNightEvents    … 夜の強制イベント（day キー）
-nightCareEvents      … 毎晩ケア（2日目以降毎夜・§毎晩のケア）
+forcedNightEvents    … 夜の強制イベント（day キー。本文は scenario-data.js の nightEvents へ移行済み）
+nightCareEvents      … 毎晩ケア（本文は scenario-data.js へ移行済み。app.js は選出・進行）
 actionDefinitions    … コマンドボタン定義
 memoryFlagsDefault   … フラグ初期値
+```
+
+### scenario-data.js の編集ポイント
+
+```
+callNameReactions    … 呼び名の特定ワード反応
+statLabels / actionLabels / timeSlotLabels … 表示ラベル
+statusTexts          … stats 値に応じた状態文
+statusChangeTexts    … stats 増減時の雰囲気コメント
+freeActionTexts      … 自由行動の結果テキスト
+nightCareEvents      … 毎晩ケア（1 夜目オープニング・2 日目以降）
+nightEvents          … 夜の強制イベント本文
+endingTexts          … 14 日目エンディング本文（データ置き場のみ・分岐未実装）
 ```
 
 
@@ -756,5 +840,7 @@ memoryFlagsDefault   … フラグ初期値
 | 2026-07-01 | 毎晩ケア / マッサージパート仕様追加                |
 | 2026-07-01 | 毎晩ケア v0.3 仕様追記（役割・初期実装方針・今はやらないこと） |
 | 2026-07-01 | パラメータ設計 v0.3 仕様追記                  |
+| 2026-07-03 | scenario-data.js 外部化方針・役割を追記        |
+| 2026-07-03 | statusChangeTexts・デバッグ用OPスキップ仕様を追記 |
 
 

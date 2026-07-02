@@ -12,6 +12,8 @@
    - statLabels / actionLabels / timeSlotLabels（表示用ラベル）
    - freeActionTexts（自由行動の結果テキスト・default のみ）
    - statusTexts（stats 値に応じた状態文・雰囲気文）
+   - statusChangeTexts（stats 増減時の雰囲気文）
+   - endingTexts（14日目エンディング本文・置き場のみ。分岐処理は未実装）
 
    setFlags / relationChange 等の「処理」は app.js 側に残し、
    ここには台詞・演出まわりのデータのみを置く。
@@ -237,6 +239,76 @@ window.SCENARIO_DATA = {
       { max: 5, text: '天使様の様子：いつも通り穏やか' },
       { max: 10, text: '天使様の様子：少し疲れている' },
     ],
+  },
+
+  statusChangeTexts: {
+    trust: {
+      up: ['天使様との距離が、ほんの少し近づいた。'],
+      down: ['天使様は、少しだけ言葉を選んでいるようだった。'],
+    },
+    prayerTuning: {
+      up: ['祈りの響きが、かすかに澄んだ。'],
+    },
+    caretakerAptitude: {
+      up: ['部屋の空気が、ほんの少し整った。'],
+    },
+    mentalMargin: {
+      up: ['あなたの中に、少しだけ余白が戻った。'],
+      down: ['あなたは、少しだけ無理をした。'],
+    },
+    angelFatigue: {
+      up: ['天使様は、少し疲れを隠しているようだった。'],
+      down: ['天使様の疲れが、少しだけほどけた。'],
+    },
+  },
+
+  // 14日目エンディング本文（データ置き場。app.js からの参照・分岐処理は未実装）
+  endingTexts: {
+    trustEnding: {
+      id: 'ending_trust',
+      title: 'そばにいるということ',
+      conditionLabel: '信頼',
+      choiceLabel: 'そばにいたい',
+      text: [
+        '十四日目の夜、天使様はいつもより少し長く沈黙していた。',
+        'やがて、彼女は静かにあなたを見る。',
+        '「あなたが望むなら、もう少しここにいても構いません」',
+      ],
+    },
+    prayerEnding: {
+      id: 'ending_prayer',
+      title: '祈りを支える',
+      conditionLabel: '祈りの調律',
+      choiceLabel: '祈りを支えたい',
+      text: [
+        '屋根裏のろうそくは、以前よりも静かに燃えていた。',
+        '天使様は魔法陣の前で振り返る。',
+        '「あなたの祈りは、この場所に届いています」',
+      ],
+    },
+    caretakerEnding: {
+      id: 'ending_caretaker',
+      title: 'この教会の朝',
+      conditionLabel: '世話役適性',
+      choiceLabel: 'この教会の暮らしを守りたい',
+      text: [
+        '朝、礼拝堂には穏やかな光が差し込んでいた。',
+        '整えられた机と、温かな食事と、昨日より少し軽い空気。',
+        '「あなたがいると、この教会の朝が整うのです」',
+      ],
+    },
+    returnEnding: {
+      id: 'ending_return',
+      title: '夏の終わりの休暇',
+      conditionLabel: '未達成',
+      choiceLabel: '帰任する',
+      text: [
+        '十四日間は、静かに過ぎていった。',
+        '大きな役目を得たわけではない。何かを劇的に変えたわけでもない。',
+        'けれど、あなたはこの教会でよく眠った。',
+        '「また、季節が変わるころに来てください」',
+      ],
+    },
   },
 
   callNameReactions: [

@@ -254,6 +254,16 @@
 * seenEventIds
 * seenNightCareIds
 
+### scenario-data.js との分担
+
+文章・表示データは、制作者が後から編集しやすいよう `scenario-data.js` へ段階的に移す。
+
+* **app.js** はゲーム進行・状態管理・判定・保存・stats 処理を担当する
+* **scenario-data.js** はセリフ・イベント本文・表示ラベル・状態文・変化コメント（`statusChangeTexts`）を担当する
+* 文章編集をしやすくするため、テキスト類は段階的に `scenario-data.js` へ移す（1 回 1 機能、大規模リファクタは避ける）
+* **app.js に残すもの:** callback / stats 変動 / memoryFlags 処理 / セーブ・ロード / 進行管理
+* この構造は、将来的に別の同棲シミュレーションへ流用できる **小型エンジン的な核** にもなる
+
 ---
 
 ## 11. 素材方針
@@ -326,6 +336,12 @@
 * 動いたら小さくcommitする
 * 仕様変更は先に `CURRENT_SPEC.md` に書く
 * AI作業ルールは `AI_GUIDELINES.md` に従う
+* **app.js** はゲーム進行・状態管理・判定・保存・stats 処理を担当する
+* **scenario-data.js** はセリフ・イベント本文・表示ラベル・状態文・変化コメント（`statusChangeTexts`）を担当する
+* 文章編集をしやすくするため、テキスト類は段階的に `scenario-data.js` へ移す
+* callback / stats 変動 / memoryFlags 処理 / セーブ・ロード / 進行管理は **app.js** に残す
+* 外部化は 1 回 1 機能で行い、大規模リファクタは避ける
+* この構造は、将来的に別の同棲シミュレーションへ流用できる **小型エンジン的な核** にもなる
 
 ---
 
@@ -458,3 +474,5 @@
 | 日付 | 更新内容 |
 | --- | --- |
 | 2026-07-02 | 初版作成 |
+| 2026-07-03 | scenario-data.js 外部化方針を追記 |
+| 2026-07-03 | statusChangeTexts・小型エンジン方針を追記 |
