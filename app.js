@@ -21,6 +21,9 @@ const STORAGE_KEY = 'angelChurchMockV0_1_save';
 
 const TIME_SLOTS = ['morning', 'noon', 'night'];
 
+// モック終了する最終日（この日の夜ケア→就寝後に終了画面）。5, 6, 28… へ延長するときはここだけ変更。
+const END_DAY = 4;
+
 // 表示ラベル（編集: scenario-data.js の SCENARIO_DATA.statLabels 等）
 const FALLBACK_STAT_LABELS = {
   trust: '信頼',
@@ -37,6 +40,7 @@ const FALLBACK_ACTION_LABELS = {
   rest: '休む',
   talk: '話しかける',
   nightCare: '夜ケア',
+  observe: '様子を見る',
 };
 
 const FALLBACK_TIME_SLOT_LABELS = {
@@ -104,6 +108,26 @@ const slotIntroTexts = Object.assign(
   {},
   FALLBACK_SLOT_INTRO_TEXTS,
   (window.SCENARIO_DATA && window.SCENARIO_DATA.slotIntroTexts) || {}
+);
+
+const FALLBACK_OBSERVE_TEXTS = {
+  default: [
+    '台所のほうから、天使様と近所の人の穏やかな笑い声が聞こえる。食べ物を分けてもらったようだ。',
+    '廊下で、背の高い天使様が梁に額をぶつけ、小さく「っ」と息を漏らしている。狭い教会らしい。',
+    '応接の隅で、天使様が荷物の山を前にして、少し困った顔をしている。片付けは苦手なのかもしれない。',
+    '懺悔室の向こうで、低い声が続いている。告解を聞いているようだ。そっとしておこう。',
+    '告解が終わったあとも、天使様はしばらく懺悔室に残っている。静かに目を閉じている。',
+  ],
+  d2_morning: '朝の光の中、天使様が近所の人から野菜を受け取り、丁寧にお礼を言っている。',
+  d2_noon: '昼下がり、天使様は教会前でご近所さんと談笑している。こちらには気づいていないようだ。',
+  d3_morning: '三日目の朝、天使様は台所で届いたパンを並べている。誰かが差し入れてくれたのだろう。',
+  d3_noon: '懺悔室の扉が閉まったままだ。中で、天使様が静かに告解を聞いているようだ。',
+};
+
+const observeTexts = Object.assign(
+  {},
+  FALLBACK_OBSERVE_TEXTS,
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.observeTexts) || {}
 );
 
 // 状態文・雰囲気文（編集: scenario-data.js の SCENARIO_DATA.statusTexts）
@@ -265,6 +289,7 @@ function findOpeningScene(sceneId) {
 /* ---------------------- 自由行動イベント ---------------------- */
 // id / day / timeSlot / action / priority / condition / setFlags / relationChange
 // 表示文・演出は scenario-data.js の freeActionTexts から取得。
+// 日付追加時: ここに day 別エントリを足し、scenario-data.js に dN_morning / dN_noon を追加。
 // 条件分岐など callback 用の個別テキストだけ、ここに text を残す。
 const freeActionEvents = [
   // --- 家事をする ---
@@ -282,6 +307,14 @@ const freeActionEvents = [
   },
   {
     id: 'chores_d3_noon', day: 3, timeSlot: 'noon', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d4_morning', day: 4, timeSlot: 'morning', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d4_noon', day: 4, timeSlot: 'noon', action: 'chores', priority: 10,
     setFlags: { helped_church: true }, relationChange: 1,
   },
   {
@@ -307,6 +340,14 @@ const freeActionEvents = [
     setFlags: { prayed_with_angel: true }, relationChange: 1,
   },
   {
+    id: 'pray_d4_morning', day: 4, timeSlot: 'morning', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d4_noon', day: 4, timeSlot: 'noon', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
     id: 'pray_fallback', action: 'pray', priority: 1,
     setFlags: { prayed_with_angel: true }, relationChange: 1,
   },
@@ -326,6 +367,14 @@ const freeActionEvents = [
   },
   {
     id: 'rest_d3_noon', day: 3, timeSlot: 'noon', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d4_morning', day: 4, timeSlot: 'morning', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d4_noon', day: 4, timeSlot: 'noon', action: 'rest', priority: 10,
     setFlags: { rested_in_room: true }, relationChange: 1,
   },
   {
@@ -359,6 +408,14 @@ const freeActionEvents = [
   },
   {
     id: 'talk_d3_noon', day: 3, timeSlot: 'noon', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d4_morning', day: 4, timeSlot: 'morning', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d4_noon', day: 4, timeSlot: 'noon', action: 'talk', priority: 10,
     setFlags: { talked_with_angel: true }, relationChange: 1,
   },
   {
@@ -502,7 +559,7 @@ function createInitialState() {
     timeSlot: 'noon',
     phase: 'opening', // 'title' | 'opening' | 'free' | 'ending'
     currentSceneId: 'arrival',
-    freeStep: null, // 'select' | 'result' | 'forced' | 'forced_after' | 'night_care'
+    freeStep: null, // 'select' | 'result' | 'observe' | 'forced' | 'forced_after' | 'night_care'
     pendingAction: null,
     pendingEntryId: null,
     pendingForcedChoiceId: null,
@@ -632,6 +689,21 @@ function startFreePhase() {
 function getSlotIntroText() {
   const key = `day${gameState.day}-${gameState.timeSlot}`;
   return slotIntroTexts[key] || DEFAULT_SLOT_INTRO_TEXT;
+}
+
+function pickObserveText(entry) {
+  if (Array.isArray(entry)) {
+    return entry[Math.floor(Math.random() * entry.length)];
+  }
+  if (typeof entry === 'string') return entry;
+  return pickObserveText(FALLBACK_OBSERVE_TEXTS.default);
+}
+
+function getObserveText() {
+  const key = freeActionTextVariantKey(gameState.day, gameState.timeSlot);
+  const specific = key && observeTexts[key];
+  if (specific) return pickObserveText(specific);
+  return pickObserveText(observeTexts.default || FALLBACK_OBSERVE_TEXTS.default);
 }
 
 function findFreeActionEvent(day, timeSlot, action) {
@@ -959,6 +1031,18 @@ function onActionButtonClick(actionId) {
   render();
 }
 
+function onObserveClick() {
+  gameState.freeStep = 'observe';
+  gameState.observeMessage = getObserveText();
+  render();
+}
+
+function onObserveBackClick() {
+  gameState.freeStep = 'select';
+  gameState.observeMessage = '';
+  render();
+}
+
 function onResultContinueClick() {
   advanceTime();
 }
@@ -1085,7 +1169,7 @@ function onNightCareContinue() {
   gameState.pendingNightCareId = null;
   applySleepRecoveryStats();
 
-  if (gameState.day >= 3) {
+  if (gameState.day >= END_DAY) {
     showEndingScreen();
     return;
   }
@@ -1176,6 +1260,12 @@ function renderActionButtons() {
     btn.addEventListener('click', () => onActionButtonClick(a.id));
     container.appendChild(btn);
   });
+  const observeBtn = document.createElement('button');
+  observeBtn.type = 'button';
+  observeBtn.className = 'action-btn';
+  observeBtn.textContent = actionLabels.observe || '様子を見る';
+  observeBtn.addEventListener('click', onObserveClick);
+  container.appendChild(observeBtn);
 }
 
 function renderHUD() {
@@ -1296,6 +1386,11 @@ function renderFree() {
     setMessage(getSlotIntroText());
     showActionBox();
     renderActionButtons();
+  } else if (gameState.freeStep === 'observe') {
+    hideActionBox();
+    clearChoiceBox();
+    setMessage(gameState.observeMessage || getObserveText());
+    renderChoiceButtons([{ label: '戻る', onClick: onObserveBackClick }]);
   } else if (gameState.freeStep === 'result') {
     hideActionBox();
     // 選択時に確定させた entry を id で引き直す（flags 変化後の再判定によるすり替わりを防ぐ）
