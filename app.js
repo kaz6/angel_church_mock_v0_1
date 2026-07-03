@@ -626,11 +626,12 @@ function getNightEventChoices(scenarioEvent) {
 }
 
 /* ---------------------- 毎晩ケア（2日目以降・自由行動の夜） ---------------------- */
-// 会話追加: scenario-data.js の SCENARIO_DATA.nightCareEvents に
-// day / priority / text 等を足す
+// 会話追加: night-care-data.js の window.SCENARIO_DATA.nightCareEvents に
+// day / priority / text 等を足す（夜ケア本文の編集はこのファイル）
 // id / day / priority / condition / text / location / angelExpression / angelStatus /
 // setFlags / relationChange
-// scenario-data.js が読み込まれていない場合の最低限フォールバック（該当なし扱い）
+// night-care-data.js（または scenario-data.js）が読み込まれていない場合の
+// 最低限フォールバック（該当なし扱い）
 const OPENING_NIGHT_CARE_ID = 'night_care_d1_opening';
 
 const FALLBACK_OPENING_NIGHT_CARE_TEXT =
