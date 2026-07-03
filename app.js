@@ -22,7 +22,7 @@ const STORAGE_KEY = 'angelChurchMockV0_1_save';
 const TIME_SLOTS = ['morning', 'noon', 'night'];
 
 // モック終了する最終日（この日の夜ケア→就寝後に終了画面）。5, 6, 28… へ延長するときはここだけ変更。
-const END_DAY = 4;
+const END_DAY = 7;
 
 // 表示ラベル（編集: scenario-data.js の SCENARIO_DATA.statLabels 等）
 const FALLBACK_STAT_LABELS = {
@@ -162,6 +162,10 @@ const memoryFlagsDefault = {
   angel_asked_for_care: false,
   rest_when_tired: false,
   angel_noticed_player_tired: false,
+  confession_day_shared: false,
+  confession_day_uncertain: false,
+  confession_day_silent: false,
+  confession_day_avoided: false,
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
@@ -318,6 +322,30 @@ const freeActionEvents = [
     setFlags: { helped_church: true }, relationChange: 1,
   },
   {
+    id: 'chores_d5_morning', day: 5, timeSlot: 'morning', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d5_noon', day: 5, timeSlot: 'noon', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d6_morning', day: 6, timeSlot: 'morning', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d6_noon', day: 6, timeSlot: 'noon', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d7_morning', day: 7, timeSlot: 'morning', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
+    id: 'chores_d7_noon', day: 7, timeSlot: 'noon', action: 'chores', priority: 10,
+    setFlags: { helped_church: true }, relationChange: 1,
+  },
+  {
     id: 'chores_fallback', action: 'chores', priority: 1,
     setFlags: { helped_church: true }, relationChange: 1,
   },
@@ -348,6 +376,30 @@ const freeActionEvents = [
     setFlags: { prayed_with_angel: true }, relationChange: 1,
   },
   {
+    id: 'pray_d5_morning', day: 5, timeSlot: 'morning', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d5_noon', day: 5, timeSlot: 'noon', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d6_morning', day: 6, timeSlot: 'morning', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d6_noon', day: 6, timeSlot: 'noon', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d7_morning', day: 7, timeSlot: 'morning', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'pray_d7_noon', day: 7, timeSlot: 'noon', action: 'pray', priority: 10,
+    setFlags: { prayed_with_angel: true }, relationChange: 1,
+  },
+  {
     id: 'pray_fallback', action: 'pray', priority: 1,
     setFlags: { prayed_with_angel: true }, relationChange: 1,
   },
@@ -375,6 +427,30 @@ const freeActionEvents = [
   },
   {
     id: 'rest_d4_noon', day: 4, timeSlot: 'noon', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d5_morning', day: 5, timeSlot: 'morning', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d5_noon', day: 5, timeSlot: 'noon', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d6_morning', day: 6, timeSlot: 'morning', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d6_noon', day: 6, timeSlot: 'noon', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d7_morning', day: 7, timeSlot: 'morning', action: 'rest', priority: 10,
+    setFlags: { rested_in_room: true }, relationChange: 1,
+  },
+  {
+    id: 'rest_d7_noon', day: 7, timeSlot: 'noon', action: 'rest', priority: 10,
     setFlags: { rested_in_room: true }, relationChange: 1,
   },
   {
@@ -419,6 +495,30 @@ const freeActionEvents = [
     setFlags: { talked_with_angel: true }, relationChange: 1,
   },
   {
+    id: 'talk_d5_morning', day: 5, timeSlot: 'morning', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d5_noon', day: 5, timeSlot: 'noon', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d6_morning', day: 6, timeSlot: 'morning', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d6_noon', day: 6, timeSlot: 'noon', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d7_morning', day: 7, timeSlot: 'morning', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
+    id: 'talk_d7_noon', day: 7, timeSlot: 'noon', action: 'talk', priority: 10,
+    setFlags: { talked_with_angel: true }, relationChange: 1,
+  },
+  {
     id: 'talk_fallback', action: 'talk', priority: 1,
     setFlags: { talked_with_angel: true }, relationChange: 1,
   },
@@ -438,17 +538,34 @@ const forcedNightEvents = {
     setFlags: { remembered_by_angel: true },
     relationChange: 1,
   },
+  7: {
+    id: 'confession_day_event',
+  },
+};
+
+const forcedNightLogLabels = {
+  2: '天使様が、あなたの疲れに気づいたようだった。',
+  3: '天使様が、前の晩のことを覚えていた。',
+  7: '夜、懺悔室で天使様と向き合った。',
 };
 
 // 選択肢 id → memoryFlags 処理（id の意味づけは app.js 側で解釈する）
 const nightEventChoiceFlags = {
   admit_tired: { pain_tired: true },
   hide_tired: { hide_pain: true },
+  confession_shared: { confession_day_shared: true },
+  confession_uncertain: { confession_day_uncertain: true },
+  confession_silent: { confession_day_silent: true },
+  confession_avoided: { confession_day_avoided: true },
 };
 
 const nightEventChoiceLogLabels = {
   admit_tired: '「少しだけ」と答えた。',
   hide_tired: '「大丈夫です」と答えた。',
+  confession_shared: '懺悔室で、少しだけ話した。',
+  confession_uncertain: '言葉にならないまま、懺悔室にいた。',
+  confession_silent: '何も言わず、懺悔室に座っていた。',
+  confession_avoided: '今日は懺悔室をやめておいた。',
 };
 
 // scenario-data.js が読み込まれていない場合の最低限フォールバック
@@ -1089,11 +1206,7 @@ function enterForcedNightEvent() {
 
   const key = `forced_night_${gameState.day}`;
   if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
-  addLog(
-    gameState.day === 2
-      ? '天使様が、あなたの疲れに気づいたようだった。'
-      : '天使様が、前の晩のことを覚えていた。'
-  );
+  addLog(forcedNightLogLabels[gameState.day] || '夜の出来事があった。');
   render();
 }
 
