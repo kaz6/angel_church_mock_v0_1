@@ -19,7 +19,7 @@
 
 const STORAGE_KEY = 'angelChurchMockV0_1_save';
 
-const TIME_SLOTS = ['morning', 'noon', 'night'];
+const TIME_SLOTS = ['morning', 'noon', 'evening', 'night'];
 
 // モック終了する最終日（この日の夜ケア→就寝後に終了画面）。5, 6, 28… へ延長するときはここだけ変更。
 const END_DAY = 7;
@@ -46,6 +46,7 @@ const FALLBACK_ACTION_LABELS = {
 const FALLBACK_TIME_SLOT_LABELS = {
   morning: '朝',
   noon: '昼',
+  evening: '夕方',
   night: '夜',
 };
 
@@ -806,7 +807,12 @@ function startFreePhase() {
 
 function getSlotIntroText() {
   const key = `day${gameState.day}-${gameState.timeSlot}`;
-  return slotIntroTexts[key] || DEFAULT_SLOT_INTRO_TEXT;
+  if (slotIntroTexts[key]) return slotIntroTexts[key];
+  // 夕方は day 別が無ければ共通の evening-default を挟む（day7 のみ専用文を用意）
+  if (gameState.timeSlot === 'evening' && slotIntroTexts['evening-default']) {
+    return slotIntroTexts['evening-default'];
+  }
+  return DEFAULT_SLOT_INTRO_TEXT;
 }
 
 function pickObserveText(entry) {
@@ -821,6 +827,10 @@ function getObserveText() {
   const key = freeActionTextVariantKey(gameState.day, gameState.timeSlot);
   const specific = key && observeTexts[key];
   if (specific) return pickObserveText(specific);
+  // 夕方は day 別が無ければ共通の eveningDefault を挟む（day7 のみ専用文を用意）
+  if (gameState.timeSlot === 'evening' && observeTexts.eveningDefault) {
+    return pickObserveText(observeTexts.eveningDefault);
+  }
   return pickObserveText(observeTexts.default || FALLBACK_OBSERVE_TEXTS.default);
 }
 
@@ -855,6 +865,10 @@ function resolveFreeActionTextBlock(action, day, timeSlot) {
   const variantKey = freeActionTextVariantKey(day, timeSlot);
   if (variantKey && actionTexts[variantKey]) {
     return actionTexts[variantKey];
+  }
+  // 夕方は day 別が無ければ共通の eveningDefault を挟む（day7 のみ専用文を用意）
+  if (timeSlot === 'evening' && actionTexts.eveningDefault) {
+    return actionTexts.eveningDefault;
   }
   return actionTexts.default || null;
 }
@@ -1099,6 +1113,25 @@ function applyTalkStats() {
   applyStatChanges(actionLabels.talk, { trust: 2 }, { actionCountKey: 'talk' });
 }
 
+// 夕方は天使様が屋根裏部屋で祈りの務め中のため、直接のケア（angelFatigue）は発生しない。
+// 家事は一人で行うぶん caretakerAptitude の伸びを控えめに、祈るは務めに寄り添うぶん
+// prayerTuning を通常より高めにする。休むは通常の rest と同じでよいため専用関数を作らない。
+function applyEveningChoresStats() {
+  applyStatChanges(
+    actionLabels.chores,
+    { caretakerAptitude: 1, mentalMargin: -1 },
+    { actionCountKey: 'chores' }
+  );
+}
+
+function applyEveningPrayStats() {
+  const changes = { prayerTuning: 3, mentalMargin: -1 };
+  if (gameState.stats.angelFatigue <= 3) {
+    changes.prayerTuning += 1;
+  }
+  applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
+}
+
 function applySleepRecoveryStats() {
   applyStatChanges('就寝', { mentalMargin: 2 });
 }
@@ -1125,7 +1158,29 @@ const actionStatEffects = {
   talk: applyTalkStats,
 };
 
+// 夕方は chores / pray のみ効果が異なる。rest は通常と同じ数値でよいため未登録（actionStatEffects にフォールバック）。
+const eveningActionStatEffects = {
+  chores: applyEveningChoresStats,
+  pray: applyEveningPrayStats,
+};
+
+function getActionStatEffect(actionId) {
+  if (gameState.timeSlot === 'evening' && eveningActionStatEffects[actionId]) {
+    return eveningActionStatEffects[actionId];
+  }
+  return actionStatEffects[actionId];
+}
+
+const eveningActionLogLabels = {
+  chores: '晩御飯の支度をした。',
+  pray: '祈りの務めに、そっと寄り添った。',
+  rest: '天使様がいない間、ゆっくり休んだ。',
+};
+
 function onActionButtonClick(actionId) {
+  // 夕方は天使様が祈りの務め中のため、話しかけるは選択不可（ボタン自体を出さないが念のため）
+  if (actionId === 'talk' && gameState.timeSlot === 'evening') return;
+
   gameState.pendingAction = actionId;
   gameState.freeStep = 'result';
 
@@ -1144,8 +1199,13 @@ function onActionButtonClick(actionId) {
     const key = `free_${gameState.day}_${gameState.timeSlot}_${actionId}`;
     if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
   }
-  if (actionStatEffects[actionId]) actionStatEffects[actionId]();
-  addLog(actionLogLabels[actionId] || '行動した。');
+  const effectFn = getActionStatEffect(actionId);
+  if (effectFn) effectFn();
+  const logLabel =
+    (gameState.timeSlot === 'evening' && eveningActionLogLabels[actionId]) ||
+    actionLogLabels[actionId] ||
+    '行動した。';
+  addLog(logLabel);
   render();
 }
 
@@ -1363,10 +1423,18 @@ function hideActionBox() {
   document.getElementById('action-box').classList.add('hidden');
 }
 
+// 夕方は天使様が祈りの務め中のため「話しかける」を出さない
+function getAvailableActionDefinitions() {
+  if (gameState.timeSlot === 'evening') {
+    return actionDefinitions.filter((a) => a.id !== 'talk');
+  }
+  return actionDefinitions;
+}
+
 function renderActionButtons() {
   const container = document.getElementById('action-buttons');
   container.innerHTML = '';
-  actionDefinitions.forEach((a) => {
+  getAvailableActionDefinitions().forEach((a) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'action-btn';

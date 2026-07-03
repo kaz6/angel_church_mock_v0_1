@@ -14,8 +14,12 @@
    - statusChangeTexts（stats 増減時の雰囲気文）
    - endingTexts（14日目エンディング本文・置き場のみ。分岐処理は未実装）
    - openingScenes（1日目オープニング本文。分岐・setFlags は app.js の sceneDefinitions）
-   - slotIntroTexts（自由行動 select 冒頭の時間帯導入文）
-   - observeTexts（様子を見る・行動消費なしの生活シチュ表示）
+   - slotIntroTexts（自由行動 select 冒頭の時間帯導入文。evening-default / dayN-evening 含む）
+   - observeTexts（様子を見る・行動消費なしの生活シチュ表示。eveningDefault / dN_evening 含む）
+
+   夕方（evening）の本文は、day 別を全日分は用意せず、
+   共通の eveningDefault（または evening-default）+ day7 専用文のみで足りる方針。
+   day2〜6 の夕方は自動的に eveningDefault にフォールバックする（app.js 側の解決ロジック）。
 
    setFlags / relationChange 等の「処理」は app.js 側に残し、
    ここには台詞・演出まわりのデータのみを置く。
@@ -50,6 +54,7 @@ window.SCENARIO_DATA = {
   timeSlotLabels: {
     morning: '朝',
     noon: '昼',
+    evening: '夕方',
     night: '夜',
   },
 
@@ -108,6 +113,15 @@ window.SCENARIO_DATA = {
       '昼下がり、懺悔室の前を通ると、中からは何も聞こえない。\n' +
       '天使様は廊下の端で、ひとり目を閉じていた。\n\n' +
       '昼の時間を、どう過ごそうか。',
+    // --- 夕方：day 別が無い日は evening-default が使われる（app.js 側で解決） ---
+    'evening-default':
+      '夕方、鐘が短く鳴った。\n' +
+      '天使様は屋根裏部屋へ上がり、日課の祈りに入ったようだ。\n\n' +
+      'しばらくは、声をかけても届かないだろう。夕方の時間を、どう過ごそうか。',
+    // --- 7日目夕方：懺悔室イベント前の、少し静かな気配 ---
+    'day7-evening':
+      '七日目の夕方。屋根裏部屋からは、いつもより静かな気配しか伝わってこない。\n\n' +
+      '懺悔室の古い扉が、傾きかけた夕方の光を受けていた。今夜のことを、天使様も少しだけ言葉を選んでいるのかもしれない。',
   },
 
   observeTexts: {
@@ -139,6 +153,11 @@ window.SCENARIO_DATA = {
       '七日目の朝。台所で天使様が茶を淹れている。背が高く、棚に肘が当たりそうになっている。',
     d7_noon:
       '廊下の端で、天使様が静かに佇んでいる。懺悔室の方を見て、また視線を逸らした。',
+    // --- 夕方：day 別が無い日は eveningDefault が使われる（app.js 側で解決） ---
+    eveningDefault:
+      '天使様は屋根裏部屋にいるようだ。祈りの務めの最中らしく、扉の奥は静かだった。',
+    d7_evening:
+      '天使様は屋根裏部屋にいるようだ。今日はいつもより、静かな気配しか伝わってこない。',
   },
 
   openingScenes: [
@@ -509,6 +528,25 @@ window.SCENARIO_DATA = {
           '天使様は懺悔室の方を見て、また視線を戻した。「……夕方まで、静かにしておきましょう」',
         ],
       },
+      // --- 夕方：day 別が無い日は eveningDefault が使われる（app.js 側で解決） ---
+      eveningDefault: {
+        location: '教会・台所',
+        angelExpression: 'calm',
+        angelStatus: '屋根裏部屋で、祈りの務めをしているようだ',
+        text: [
+          '天使様がいない台所で、静かに晩御飯の支度をする。',
+          '大した料理ではないけれど、鍋から立つ湯気だけで、少しだけ部屋が生活の匂いに満ちた。',
+        ],
+      },
+      d7_evening: {
+        location: '教会・台所',
+        angelExpression: 'calm',
+        angelStatus: '屋根裏部屋の祈りが、いつもより静かだ',
+        text: [
+          '七日目の夕方、いつものように晩御飯の支度をする。',
+          '屋根裏からは物音ひとつしない。今夜のことを思うと、鍋をかき混ぜる手が、少しだけ遅くなった。',
+        ],
+      },
     },
     pray: {
       default: {
@@ -628,6 +666,25 @@ window.SCENARIO_DATA = {
           '「……今日は、特別な日ではありません。それでも、ここにいていいのです」',
         ],
       },
+      // --- 夕方：day 別が無い日は eveningDefault が使われる（app.js 側で解決） ---
+      eveningDefault: {
+        location: '屋根裏部屋の近く',
+        angelExpression: 'calm',
+        angelStatus: '屋根裏部屋で、祈りの務めに入っている',
+        text: [
+          '屋根裏へ続く階段の下で、そっと手を合わせる。',
+          '扉の向こうから、低く静かな祈りの声がかすかに響いていた。務めの邪魔にならないよう、あなたも短く祈った。',
+        ],
+      },
+      d7_evening: {
+        location: '屋根裏部屋の近く',
+        angelExpression: 'calm',
+        angelStatus: '祈りの務めが、いつもより静かだ',
+        text: [
+          '七日目の夕方、階段の下でいつものように手を合わせる。',
+          '今日は祈りの声が、いつもより小さい。務めの重さが、扉越しにも伝わってくるようだった。',
+        ],
+      },
     },
     rest: {
       default: {
@@ -745,6 +802,25 @@ window.SCENARIO_DATA = {
         text: [
           '昼下がり、何もしない時間を過ごす。',
           '天使様は本を閉じて、短く言った。「……今夜のことは、無理に決めなくて構いません」',
+        ],
+      },
+      // --- 夕方：day 別が無い日は eveningDefault が使われる（app.js 側で解決） ---
+      eveningDefault: {
+        location: '個室',
+        angelExpression: 'calm',
+        angelStatus: '屋根裏部屋で、祈りの務めをしているようだ',
+        text: [
+          '天使様がいない個室で、少しだけ体を休める。',
+          '誰に気を遣うでもなく、ただ静かに過ごす時間も、悪くないと思えた。',
+        ],
+      },
+      d7_evening: {
+        location: '個室',
+        angelExpression: 'calm',
+        angelStatus: '屋根裏部屋の祈りが、いつもより静かだ',
+        text: [
+          '七日目の夕方、少しだけ横になって休む。',
+          '今夜のことを考えると、なんとなく落ち着かない。それでも、目を閉じて過ごす時間を選んだ。',
         ],
       },
     },
