@@ -225,3 +225,19 @@
 - position / stage 別テキスト・CGの器の実装（stage分割自体が未実装のため）
 - ボイス解決層（resolveVoiceId 相当）の実装
 - 上記が具体仕様として確定したら CURRENT_SPEC.md を更新してから着手する
+
+
+## 夜ケアCSVパイプライン：実装済みと残タスク（2026-07-12）
+
+### 実装済み
+- night-care.csv（全年齢の編集元・表計算で編集）→ tools/build-nightcare.js で
+  night-care-data.js を自動生成。tools/csv-util.js（CSVパーサ/ライタ）、
+  tools/dump-nightcare.js（初回CSV生成の補助）
+- 現行データからCSVを自動生成し、逆生成で挙動一致を確認済み（mode切替・フォールバック）
+
+### 残タスク（実R-18本文を入れる段階で着手）
+- adult列を gitignore 対象の別CSV（night-care.adult.csv）へ分離し、
+  idでマージする形にする（生成物 night-care-data.adult.js もローカル限定）。
+  .gitignore は先行して除外設定済み
+- stage/position 軸が確定したら列（stage / position / cg_id / voice_id 等）を追加
+- 必要なら scenario-data.js の他パートも同方式でCSV化を検討（今はやらない）

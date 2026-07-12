@@ -55,3 +55,9 @@ cg/r18/
 *.sai
 *.ai
 *.kra
+
+# 実R-18本文を入れる段階で使う adult 編集元CSV・その生成物（ローカル限定）
+# 全年齢の night-care.csv は追跡するが、adult 本文は git に載せない
+night-care.adult.csv
+*.adult.csv
+night-care-data.adult.js

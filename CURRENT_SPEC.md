@@ -1158,7 +1158,9 @@ scenario-data.js  →  night-care-data.js  →  app.js
 | `content-config.js` | 全年齢/R-18 モード設定（`CONTENT_CONFIG.mode`）。最初に読み込む |
 | `asset-resolver.js` | normal/adult 参照の解決層（`AssetResolver`。§全年齢 / R-18 差し替えアーキテクチャ） |
 | `scenario-data.js` | セリフ・イベント本文・表示ラベル・状態文・夕方/様子を見るテキスト（§scenario-data.js の役割） |
-| `night-care-data.js` | **夜ケア専用**データ（`nightCareEvents`）。scenario-data の後に読み込む |
+| `night-care.csv`  | **夜ケア本文の編集元**（表計算で編集）。§夜ケアデータのCSV化 |
+| `tools/build-nightcare.js` | `night-care.csv` → `night-care-data.js` 生成スクリプト（`node tools/build-nightcare.js`） |
+| `night-care-data.js` | **夜ケア専用**データ（`nightCareEvents`）。**`night-care.csv` からの自動生成物**。手編集しない。scenario-data の後に読み込む |
 | `app.js`          | 進行・状態管理・判定・保存・stats 処理。会話本文は直書きしない方針 |
 
 
@@ -1191,11 +1193,22 @@ nightEvents          … 夜の強制イベント本文（2・3・7 日目）
 endingTexts          … エンディング本文の置き場（分岐未実装）
 ```
 
-### night-care-data.js の編集ポイント
+### 夜ケアデータのCSV化
 
-```
-nightCareEvents      … 毎晩ケア（1 夜目オープニング・2〜7 日目・fallback）
-```
+夜ケア本文は **`night-care.csv`（表計算で編集）→ `tools/build-nightcare.js` で
+`night-care-data.js` を生成** する。生成物は手編集しない。
+
+- 列: `id, day, phase, countsAsRoutine, priority, location, angelExpression,
+  angelStatus, relationChange, setFlags, text_normal, text_adult`
+- 1 行 = 1 エントリ。text セルは空行（改行2つ）で段落分割される
+- `setFlags` は JSON、数値列は空欄なら出力しない
+- 再生成: `node tools/build-nightcare.js`
+- 型が決まっている夜パートだけを対象にした運用。他パート（scenario-data.js）は
+  当面 JS 直編集のまま
+- **git安全**: `text_adult` 列には開発用の非センシティブなダミー/`[TODO:作者差し込み]`
+  のみ置く。実 R-18 本文はこの追跡下CSVに書かない。実本文を入れる段階で
+  adult 列を gitignore 対象の別CSV（`night-care.adult.csv`）へ分離する（§今後の課題 / NEXT_TASKS）
+- 将来 stage/position 軸を足す場合も列追加で拡張できる（§全年齢 / R-18 差し替えアーキテクチャの差分軸）
 
 
 
@@ -1226,5 +1239,6 @@ nightCareEvents      … 毎晩ケア（1 夜目オープニング・2〜7 日�
 | 2026-07-03 | CONCEPT.md 連携・28日/14日表現整理・将来解禁仕様を追記 |
 | 2026-07-03 | 7日目モック・夕方スロット・様子を見る・night-care-data.js 分離・懺悔室イベントを反映 |
 | 2026-07-12 | 全年齢/R-18 差し替えアーキテクチャを追加（content-config.js / asset-resolver.js / text_normal・text_adult スキーマ / フォールバック / 夜ケアサンプル差分） |
+| 2026-07-12 | 夜ケアデータをCSV化（night-care.csv → tools/build-nightcare.js で night-care-data.js 生成）。実R-18本文のadult別CSV分離は今後の課題 |
 
 
