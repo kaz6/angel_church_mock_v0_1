@@ -257,6 +257,16 @@ const sceneDefinitions = [
   },
 ];
 
+// 全年齢/R-18 差し替え: 表示テキストは AssetResolver（asset-resolver.js）経由で
+// text_normal / text_adult / text（レガシー）から現在モードのものを解決する。
+// asset-resolver.js が読み込まれていない場合は従来どおり text を使う
+function resolveContentText(entry, baseKey) {
+  if (window.AssetResolver) {
+    return window.AssetResolver.resolveText(entry, baseKey);
+  }
+  return entry ? entry[baseKey || 'text'] : undefined;
+}
+
 function formatOpeningSceneText(text) {
   if (!text) return '';
   if (Array.isArray(text)) return text.join('\n\n');
@@ -267,7 +277,7 @@ function formatOpeningSceneText(text) {
 function normalizeOpeningScene(scene) {
   if (!scene) return null;
   return Object.assign({}, scene, {
-    text: formatOpeningSceneText(scene.text),
+    text: formatOpeningSceneText(resolveContentText(scene)),
   });
 }
 
@@ -609,7 +619,7 @@ function getNightEventDisplay(day) {
 // day3 のように、同じ夜イベントでも memoryFlags によって続く一文が変わる場合、
 // どの variant を使うかは app.js 側（callback の判定）で決める。
 function getNightEventText(scenarioEvent) {
-  const base = joinParagraphs(scenarioEvent.text);
+  const base = joinParagraphs(resolveContentText(scenarioEvent));
   if (!scenarioEvent.textVariants) return base;
   const variantKey = gameState.memoryFlags.pain_tired
     ? 'pain_tired'
@@ -658,7 +668,8 @@ function getOpeningNightCareEvent() {
 
 function getOpeningNightCareText() {
   const entry = getOpeningNightCareEvent();
-  return entry && entry.text ? joinParagraphs(entry.text) : FALLBACK_OPENING_NIGHT_CARE_TEXT;
+  const text = resolveContentText(entry);
+  return text ? joinParagraphs(text) : FALLBACK_OPENING_NIGHT_CARE_TEXT;
 }
 
 function applyOpeningNightCareDisplay(entry) {
@@ -848,9 +859,10 @@ function findFreeActionEvent(day, timeSlot, action) {
 }
 
 function formatFreeActionTextBlock(block) {
-  if (!block || block.text === undefined) return FALLBACK_FREE_ACTION_TEXT;
-  if (Array.isArray(block.text)) return block.text.join('\n\n');
-  if (typeof block.text === 'string') return block.text;
+  const text = resolveContentText(block);
+  if (text === undefined) return FALLBACK_FREE_ACTION_TEXT;
+  if (Array.isArray(text)) return text.join('\n\n');
+  if (typeof text === 'string') return text;
   return FALLBACK_FREE_ACTION_TEXT;
 }
 
@@ -877,9 +889,10 @@ function getFreeActionDisplay(entry) {
   if (!entry) {
     return { text: FALLBACK_FREE_ACTION_TEXT };
   }
-  if (entry.text) {
+  const entryText = resolveContentText(entry);
+  if (entryText) {
     return {
-      text: entry.text,
+      text: entryText,
       location: entry.location,
       angelExpression: entry.angelExpression,
       angelStatus: entry.angelStatus,
@@ -1592,7 +1605,7 @@ function renderFree() {
     const scenarioEvent = getNightEventDisplay(gameState.day);
     const choices = getNightEventChoices(scenarioEvent);
     const choice = choices.find((c) => c.id === gameState.pendingForcedChoiceId);
-    setMessage(choice ? joinParagraphs(choice.resultText) : '');
+    setMessage(choice ? joinParagraphs(resolveContentText(choice, 'resultText')) : '');
     renderChoiceButtons([{ label: '続ける', onClick: onForcedAfterContinue }]);
   } else if (gameState.freeStep === 'night_care') {
     hideActionBox();
@@ -1601,7 +1614,7 @@ function renderFree() {
       : null;
     setMessage(
       entry
-        ? joinParagraphs(entry.text)
+        ? joinParagraphs(resolveContentText(entry))
         : '就寝前、天使様の肩をそっとほぐした。\n\n「……お休みなさい」'
     );
     renderChoiceButtons([{ label: '就寝する', onClick: onNightCareContinue }]);
@@ -1623,6 +1636,7 @@ function renderLog() {
 function renderDebug() {
   if (!debugVisible) return;
   const info = {
+    contentMode: window.AssetResolver ? window.AssetResolver.getMode() : 'all_ages',
     day: gameState.day,
     timeSlot: gameState.timeSlot,
     timeSlotLabel: timeSlotLabels[gameState.timeSlot] || gameState.timeSlot,
@@ -1834,7 +1848,7 @@ function buildOpeningSceneDetail(scene) {
   if (scene.relationChange) lines.push(`relationChange: ${scene.relationChange}`);
   lines.push('');
   lines.push('本文：');
-  lines.push(formatScenarioPreviewText(scene.text));
+  lines.push(formatScenarioPreviewText(resolveContentText(scene)));
   appendScenarioChoices(lines, scene.choices);
   return lines.join('\n');
 }
@@ -1855,7 +1869,7 @@ function buildFreeActionDetail(actionKey) {
     appendScenarioField(lines, 'angelStatus', block.angelStatus);
     lines.push('');
     lines.push('本文：');
-    lines.push(formatScenarioPreviewText(block.text));
+    lines.push(formatScenarioPreviewText(resolveContentText(block)));
     lines.push('');
   });
   return lines.join('\n').trimEnd();
@@ -1876,7 +1890,7 @@ function buildNightEventDetail(eventId) {
   appendScenarioField(lines, 'angelStatus', event.angelStatus);
   lines.push('');
   lines.push('本文：');
-  lines.push(formatScenarioPreviewText(event.text));
+  lines.push(formatScenarioPreviewText(resolveContentText(event)));
   if (event.textVariants && typeof event.textVariants === 'object') {
     lines.push('');
     lines.push('textVariants:');
@@ -1909,8 +1923,14 @@ function buildNightCareDetail(eventId) {
   if (event.relationChange !== undefined) lines.push(`relationChange: ${event.relationChange}`);
   if (event.setFlags) lines.push(`setFlags: ${JSON.stringify(event.setFlags)}`);
   lines.push('');
-  lines.push('本文：');
-  lines.push(formatScenarioPreviewText(event.text));
+  const mode = window.AssetResolver ? window.AssetResolver.getMode() : 'all_ages';
+  lines.push(`本文（現在モード: ${mode}）：`);
+  lines.push(formatScenarioPreviewText(resolveContentText(event)));
+  if (event.text_adult !== undefined) {
+    lines.push('');
+    lines.push('text_adult（R-18差分・生データ）：');
+    lines.push(formatScenarioPreviewText(event.text_adult));
+  }
   return lines.join('\n');
 }
 
@@ -2169,6 +2189,25 @@ function toggleDebug() {
   if (debugVisible) renderDebug();
 }
 
+// 全年齢/R-18 モードの実行時切替（デバッグ専用）。
+// 製品版のモードは content-config.js（ビルド設定）で固定し、この切替は
+// 「同一データからモードで表示が変わること」を確認するためだけに使う
+function updateDebugModeButton() {
+  const btn = document.getElementById('btn-debug-mode-toggle');
+  if (!btn || !window.AssetResolver) return;
+  btn.textContent = 'モード: ' + window.AssetResolver.getMode();
+}
+
+function toggleContentMode() {
+  if (!window.AssetResolver) return;
+  const next = window.AssetResolver.isAdultMode()
+    ? window.AssetResolver.MODE_ALL_AGES
+    : window.AssetResolver.MODE_R18;
+  window.AssetResolver.setMode(next);
+  updateDebugModeButton();
+  render();
+}
+
 /* -------------------------------------------------------------------------
    5. イベント配線・初期化
    ------------------------------------------------------------------------- */
@@ -2192,6 +2231,8 @@ function wireButtons() {
   document.getElementById('btn-debug-toggle').addEventListener('click', toggleDebug);
   document.getElementById('btn-debug-op-skip').addEventListener('click', debugSkipToDay2Morning);
   document.getElementById('btn-debug-scenario-list').addEventListener('click', toggleScenarioList);
+  document.getElementById('btn-debug-mode-toggle').addEventListener('click', toggleContentMode);
+  updateDebugModeButton();
   document.getElementById('scenario-list-content').addEventListener('click', onScenarioListClick);
 
   document.getElementById('btn-ending-title').addEventListener('click', () => {
