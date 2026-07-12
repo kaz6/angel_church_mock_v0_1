@@ -194,3 +194,34 @@
 - 夜ケア上位stage実装時に、stage別テキストへ同じ text_normal/text_adult 規約を適用
 - 必要になったら textVariants / 選択肢ラベルの adult 差分スキーマ拡張（今はやらない）
 - Unity移植時: content-config.js → ビルド設定、asset-resolver.js → C# AssetResolver へ移植
+
+
+## 夜ケアR-18拡張の方向性メモ（2026-07-12・未確定。器は今作らない）
+
+作者ブレストの記録。差し替えアーキテクチャの「差分軸」設計に効くため残す。
+
+### 確定（作者言明）
+- **選択で体位が変わる**（プレイヤーの選択で position が分岐）
+- **行為中の進行で stage 上昇**（確定済み数値仕様 careStage 1〜5 / stageProgress 0〜100 と整合）
+
+### 方向性（未確定・変わりうる）
+- R-18差分は上位stage限定ではなく、**全stageに濃淡をつけて入れる**方針かも
+- **夜のみボイス**を入れたい
+- BGM/SE も今後入れる予定（まだ先）
+
+### アーキテクチャへの含意（今のうちに握っておく設計指針）
+- 差分の軸は多次元になる: **mode(normal/adult) × stage × position**。
+- **mode を一番外側の軸に固定する**。base-id を `{scene_id}_{stage}_{position}` の形で
+  組み立て、その外側に asset-resolver が `_normal` / `_adult` を付ける入れ子にすれば、
+  stage や position が増えても解決層は同じ形で拡張できる（現行 resolveCgId / resolveText の延長）。
+- テキストも同様に、stageブロックごとに `text_normal` / `text_adult` を持たせる
+  （現行スキーマをそのまま入れ子で下ろすだけ。上位stage限定ではなく全stage対象になりうる）。
+- **ボイスは CG と同じ「センシティブなアセット種別」**として扱う。
+  R-18ボイスは git 非管理（.gitignore の `**/*_adult.*` / `adult/` / `r18/` で自動除外済み）。
+  解決層は将来、CG用 resolveCgId と同じ仕組みをボイスID（resolveVoiceId 相当）にも適用する。
+- BGM/SE はバイナリのためローカル/Unity管理。git には置かない。
+
+### 今やらないこと
+- position / stage 別テキスト・CGの器の実装（stage分割自体が未実装のため）
+- ボイス解決層（resolveVoiceId 相当）の実装
+- 上記が具体仕様として確定したら CURRENT_SPEC.md を更新してから着手する
