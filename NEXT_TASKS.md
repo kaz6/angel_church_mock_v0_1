@@ -177,3 +177,20 @@
 - 14日目に帰る/残る選択は出さない
 - 21日目の葬儀は泣かせイベントではなく、その人がいたことを覚える日として描く
 - 28日目の帰還選択は、天使様を捨てる選択にしない
+
+## 全年齢/R-18 差し替え：実装済みと残タスク
+
+（詳細は CURRENT_SPEC.md「全年齢 / R-18 差し替えアーキテクチャ」）
+
+### 実装済み（2026-07-12）
+- content-config.js（mode切替1箇所）+ asset-resolver.js（解決層）
+- text_normal / text_adult スキーマとフォールバック（[TODO: プレースホルダ含む）
+- CG命名規約 {scene_id}_normal / _adult と cgRegistry によるフォールバック
+- サンプル: night_care_d3（ダミー差分）/ night_care_d7（[TODO]フォールバック）
+- デバッグパネルのモード切替ボタン
+
+### 残タスク
+- R-18本文・CGの差し込み（作者専管。データ上は [TODO:作者差し込み] を置くだけ）
+- 夜ケア上位stage実装時に、stage別テキストへ同じ text_normal/text_adult 規約を適用
+- 必要になったら textVariants / 選択肢ラベルの adult 差分スキーマ拡張（今はやらない）
+- Unity移植時: content-config.js → ビルド設定、asset-resolver.js → C# AssetResolver へ移植

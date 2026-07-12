@@ -987,7 +987,8 @@ setFlags, relationChange
 開発・検証用。本番プレイヤー向け機能ではない。
 
 - デバッグ表示 ON/OFF 切替ボタンでパネル表示
-- JSON 形式で `gameState` 主要フィールドを確認できる
+- JSON 形式で `gameState` 主要フィールドを確認できる（`contentMode` 含む）
+- 「モード: all_ages / r18」ボタンで全年齢/R-18 表示を実行時切替できる（検証専用。§全年齢 / R-18 差し替えアーキテクチャ）
 
 ### デバッグ用OPスキップ
 
@@ -1024,8 +1025,66 @@ setFlags, relationChange
 | 未視聴イベント優先ロジック            | **未採用**    | 必要なら spec 更新後に追加                     |
 | 成人向けレイヤー                 | **未定**     | 全年齢版完成後、別 spec / 別ビルドで検討             |
 | `pain_not_needed` 等の旧フラグ | **削除済み**   | v0.2 の `memoryFlags` に合わせる           |
+| 成人向けレイヤーの**器**            | **実装済み**   | §全年齢 / R-18 差し替えアーキテクチャ 参照。本文差し込みは作者専管・未着手 |
 | **痛み記憶システム**（`painSeeds` / `painType`） | **未実装・仕様メモのみ** | §痛みと癒しの記憶システム方針 参照。現行モックでは `painSeeds` / `painType` は未実装 |
 
+
+---
+
+## 全年齢 / R-18 差し替えアーキテクチャ
+
+将来、DLsite向けR-18版と全年齢版を **同一データ構造から** 出力するための器。
+モック段階ではスキーマと解決層のみ用意し、R-18本文・CGの中身は一切持たない
+（本文差し込みは作者専管。データ上は `[TODO:作者差し込み]` プレースホルダのみ許可）。
+
+### 構成ファイル
+
+| ファイル | 役割 |
+| --- | --- |
+| `content-config.js` | `window.CONTENT_CONFIG = { mode: 'all_ages' \| 'r18' }`。**モード切替はここ1箇所のみ** |
+| `asset-resolver.js` | `window.AssetResolver`。モードに応じて normal / adult の参照を解決する層。DOM・gameState 非依存（Unity移植時に C# クラスへそのまま写す想定） |
+
+読み込み順: `content-config.js` → `asset-resolver.js` → `scenario-data.js` → `night-care-data.js` → `app.js`
+
+### データスキーマ（同一IDによる差分管理）
+
+- **テキスト**: エントリに `text_normal` / `text_adult` を持たせる
+  - 従来の `text` キーは `text_normal` と同義（レガシー互換）。差分を持たないエントリは `text` のままでよい
+  - 同一エントリに `text` と `text_normal` を混在させない（移行時は `text` → `text_normal` にリネーム）
+  - `resultText` など別ベースキーも同じ規約（`resolveText(entry, 'resultText')`）
+- **CG**: `{scene_id}_normal` / `{scene_id}_adult` の命名。adult 側の実在は `SCENARIO_DATA.cgRegistry`（定義済みCG IDの配列・任意）で判定する
+
+### フォールバック規則（差し込み前でも常に動く）
+
+| モード | 解決順 |
+| --- | --- |
+| `all_ages` | `text_normal` → `text` |
+| `r18` | `text_adult` → `text_normal` → `text` |
+
+- `text_adult` が **未定義**、または **`[TODO:` で始まるプレースホルダ** の場合は normal 側へ自動フォールバックする
+- CG も同様: `cgRegistry` に `{id}_adult` が無ければ `{id}_normal` を返す
+
+### app.js との接続
+
+- 表示テキストの参照箇所は `resolveContentText(entry[, baseKey])`（AssetResolver の薄いラッパ）を通す
+- `setFlags` / `relationChange` などの **処理・数値はモードで分岐しない**（差分は表示コンテンツのみ）
+- モードはビルド設定であり **セーブデータに含めない**
+
+### サンプル（動作確認用）
+
+- `night_care_d3` … `text_adult` にダミー文（実内容ではないマーカー）。r18 切替で表示が変わることの確認用
+- `night_care_d7` … `text_adult: '[TODO:作者差し込み]'`。プレースホルダが normal にフォールバックすることの確認用
+
+### デバッグ用モード切替
+
+デバッグパネルに「モード: all_ages / r18」ボタンを表示し、実行時に切替・再描画できる。
+検証専用であり、製品版のモードは `content-config.js`（Unityではビルド設定）で固定する。
+
+### 今やらないこと
+
+- R-18本文・CGの具体化（作者専管）
+- `textVariants`（memoryFlags 分岐）や選択肢ラベルの adult 差分（必要になった時点でスキーマ拡張）
+- 全年齢/R-18でのイベント構成そのものの差し替え（差分は本文・CG参照のみ）
 
 ---
 
@@ -1096,6 +1155,8 @@ scenario-data.js  →  night-care-data.js  →  app.js
 | ----------------- | --------------------------------------- |
 | `index.html`      | 画面構造（タイトル / ゲーム / 終了）。スクリプト読み込み順を定義 |
 | `style.css`       | 教会風 UI                                  |
+| `content-config.js` | 全年齢/R-18 モード設定（`CONTENT_CONFIG.mode`）。最初に読み込む |
+| `asset-resolver.js` | normal/adult 参照の解決層（`AssetResolver`。§全年齢 / R-18 差し替えアーキテクチャ） |
 | `scenario-data.js` | セリフ・イベント本文・表示ラベル・状態文・夕方/様子を見るテキスト（§scenario-data.js の役割） |
 | `night-care-data.js` | **夜ケア専用**データ（`nightCareEvents`）。scenario-data の後に読み込む |
 | `app.js`          | 進行・状態管理・判定・保存・stats 処理。会話本文は直書きしない方針 |
@@ -1164,5 +1225,6 @@ nightCareEvents      … 毎晩ケア（1 夜目オープニング・2〜7 日�
 | 2026-07-03 | 日数構成の検討メモを整理（28日案は正式決定ではない旨を明記） |
 | 2026-07-03 | CONCEPT.md 連携・28日/14日表現整理・将来解禁仕様を追記 |
 | 2026-07-03 | 7日目モック・夕方スロット・様子を見る・night-care-data.js 分離・懺悔室イベントを反映 |
+| 2026-07-12 | 全年齢/R-18 差し替えアーキテクチャを追加（content-config.js / asset-resolver.js / text_normal・text_adult スキーマ / フォールバック / 夜ケアサンプル差分） |
 
 
