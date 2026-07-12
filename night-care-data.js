@@ -35,6 +35,22 @@
    このファイルに day 別の nightCareEvents エントリを追加していけば、
    専用の夜ケア本文として拾われる（app.js の findNightCareEvent が
    day 一致 → priority 降順で選ぶ、既存の仕組みをそのまま使う）。
+
+   ------------------------------------------------------------------
+   全年齢 / R-18 差分スキーマ（asset-resolver.js が解決する）
+   ------------------------------------------------------------------
+   - text            … 従来キー。text_normal と同義（レガシー互換）。
+                       差分を持たないエントリはこのままでよい
+   - text_normal     … 全年齢版本文。差分を入れるエントリで使う
+   - text_adult      … R-18版本文。mode: 'r18' のときだけ表示される。
+                       未定義、または '[TODO:' で始まるプレースホルダなら
+                       text_normal に自動フォールバックする
+   - R-18本文はすべて作者専管。AI・データ整備では
+     '[TODO:作者差し込み]' プレースホルダのみ置く。
+   - 同一エントリに text と text_normal/text_adult を混在させない
+     （移行するときは text を text_normal にリネームする）
+   - サンプル: night_care_d3 がダミー差分入り（切替確認用）、
+     night_care_d7 が [TODO] プレースホルダ（フォールバック確認用）
    ========================================================================= */
 
 'use strict';
@@ -73,6 +89,8 @@ window.SCENARIO_DATA.nightCareEvents = [
       '「……少しだけ、お願いします」',
     ],
   },
+  // 全年齢/R-18 差分のサンプル（切替確認用）。
+  // text_adult はダミー文（実内容ではない）。本差し込みは作者が行う
   {
     id: 'night_care_d3',
     day: 3,
@@ -82,7 +100,11 @@ window.SCENARIO_DATA.nightCareEvents = [
     angelStatus: '少し自然に身を預けている',
     relationChange: 1,
     setFlags: { angel_relaxed_by_care: true },
-    text: [
+    text_normal: [
+      '昨日よりも、天使様は少しだけ自然に身を預けた。\n部屋の外では、夏の終わりの虫の声が細く続いている。',
+    ],
+    text_adult: [
+      '【R-18差分ダミー】ここに作者差し込みのR-18版本文が入る（night_care_d3_adult）。',
       '昨日よりも、天使様は少しだけ自然に身を預けた。\n部屋の外では、夏の終わりの虫の声が細く続いている。',
     ],
   },
@@ -129,6 +151,8 @@ window.SCENARIO_DATA.nightCareEvents = [
       '天使様は何も言わず肩を預けてきた。それだけで、今日一日の終わりが伝わる。',
     ],
   },
+  // text_adult が [TODO] プレースホルダの間は r18 モードでも
+  // text_normal が表示される（フォールバック確認用サンプル）
   {
     id: 'night_care_d7',
     day: 7,
@@ -138,11 +162,12 @@ window.SCENARIO_DATA.nightCareEvents = [
     angelStatus: '静かに休んでいる',
     relationChange: 1,
     setFlags: { angel_relaxed_by_care: true },
-    text: [
+    text_normal: [
       '懺悔室のあと、個室に戻る。天使様も後から静かに入ってきた。',
       '告解の間でのことについて、何も問いかけてこない。',
       '「……お休みなさい」とだけ言って、いつものように肩を預けてきた。',
     ],
+    text_adult: '[TODO:作者差し込み]',
   },
   {
     id: 'night_care_fallback',
