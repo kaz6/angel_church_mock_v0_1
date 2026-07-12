@@ -34,6 +34,14 @@
 'use strict';
 
 window.SCENARIO_DATA = {
+  // 全年齢/R-18 差し替え: 定義済みCG ID の登録簿（asset-resolver.js が参照）。
+  // r18モードで {scene_id}_adult がここに登録されている場合のみ adult CG を採用し、
+  // 未登録なら {scene_id}_normal に自動フォールバックする。
+  // 実CGバイナリは git に置かない（ローカル/Unity/DLsite配信で管理）。
+  // ここはあくまで「どのCG IDが用意済みか」の宣言のみ。
+  // 下記はサンプル（night_care_d3 のadult枠が用意済みという想定）。
+  cgRegistry: ['night_care_d3_adult'],
+
   statLabels: {
     trust: '信頼',
     prayerTuning: '祈りの調律',

@@ -1637,6 +1637,11 @@ function renderDebug() {
   if (!debugVisible) return;
   const info = {
     contentMode: window.AssetResolver ? window.AssetResolver.getMode() : 'all_ages',
+    // CG解決層の確認用: 現在モードで night_care_d3 のCG参照IDがどう解決されるか。
+    // モード切替（all_ages ⇄ r18）で _normal / _adult が切り替わることを確認できる
+    resolvedCgSample: window.AssetResolver
+      ? window.AssetResolver.resolveCgId('night_care_d3')
+      : null,
     day: gameState.day,
     timeSlot: gameState.timeSlot,
     timeSlotLabel: timeSlotLabels[gameState.timeSlot] || gameState.timeSlot,
