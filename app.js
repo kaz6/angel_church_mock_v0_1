@@ -170,21 +170,72 @@ const memoryFlagsDefault = {
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
+// 2026-07-14: 28日想定への切替に合わせ、全stats・範囲・増減幅を2倍スケール化（DECISION_LOG参照）。
 const statsDefault = {
   trust: 0,
   prayerTuning: 0,
   caretakerAptitude: 0,
-  mentalMargin: 5,
-  mentalMarginMax: 10,
-  angelFatigue: 5,
+  mentalMargin: 10,
+  mentalMarginMax: 20,
+  angelFatigue: 10,
 };
 
 const statsRange = {
-  trust: [0, 30],
-  prayerTuning: [0, 30],
-  caretakerAptitude: [0, 30],
-  angelFatigue: [0, 10],
+  trust: [0, 60],
+  prayerTuning: [0, 60],
+  caretakerAptitude: [0, 60],
+  angelFatigue: [0, 20],
 };
+
+// パラメーター増減の集約チューニング（28日シミュレーションでの数値調整用。
+// 各 apply*Stats はここを参照する。マジックナンバーを本体ロジックに直書きしない）。
+// 値は上記スケール（2倍）に合わせた最終値。
+const STAT_CONFIG = {
+  chores: { caretakerAptitude: 4, angelFatigue: -2, mentalMargin: -2 },
+  pray: {
+    prayerTuning: 4,
+    mentalMargin: -2,
+    prayerTuningBonus: 2,
+    prayerTuningBonusFatigueMax: 6, // angelFatigue がこの値以下ならボーナス
+  },
+  rest: { mentalMargin: 4 },
+  talk: { trust: 4 },
+  eveningChores: { caretakerAptitude: 2, mentalMargin: -2 },
+  eveningPray: {
+    prayerTuning: 6,
+    mentalMargin: -2,
+    prayerTuningBonus: 2,
+    prayerTuningBonusFatigueMax: 6,
+  },
+  sleep: { mentalMargin: 4 },
+  nightCare: {
+    trust: 2,
+    angelFatigue: -2,
+    mentalMargin: -2,
+    bonusAngelFatigue: -2,
+    bonusMentalMarginMin: 14, // mentalMargin がこの値以上ならボーナス減算
+  },
+  restWhenTiredMentalMarginMax: 4, // rest_when_tired / angel_noticed_player_tired フラグの閾値
+};
+
+// angelFatigue の加算（新規・往復させる側）専用の設定。
+// 夕方の祈り（天使様の日課）はプレイヤー行動と無関係に毎晩1回だけ発生させる（advanceTime参照）。
+const FATIGUE_CONFIG = {
+  eveningPrayerGain: 4, // 夕方の祈り（日課）で毎晩自動的に溜まる量（trust reductionの対象）
+  restGain: 1, // 昼、主人公が休む間に天使様が家事をする分、少し溜まる量（trust reductionの対象）
+  eveningPrayReduce: 1, // 夕方に祈るを選んだ場合、日課の疲労上昇をほんの少し相殺する量
+  trustReductionRate: 0.01, // trust 1につき、疲労の加算量をこの割合だけ抑える（下限0、負にしない）
+};
+
+// trust が上がるほど疲労の「加算量」を抑える（C. 全体に効く。祈りのみ限定でない）。
+// 減算（chores/夜ケア/eveningPrayReduce等）には適用しない。
+function fatigueGainAfterTrust(baseGain) {
+  const factor = Math.max(
+    0,
+    1 - gameState.stats.trust * FATIGUE_CONFIG.trustReductionRate
+  );
+  return Math.round(baseGain * factor);
+}
 
 // 主人公の行動傾向カウント
 const actionCountsDefault = {
@@ -1094,27 +1145,34 @@ function applyStatChanges(label, changes, options = {}) {
 function applyChoresStats() {
   applyStatChanges(
     actionLabels.chores,
-    { caretakerAptitude: 2, angelFatigue: -1, mentalMargin: -1 },
+    Object.assign({}, STAT_CONFIG.chores),
     { actionCountKey: 'chores' }
   );
 }
 
 function applyPrayStats() {
-  const changes = { prayerTuning: 2, mentalMargin: -1 };
-  if (gameState.stats.angelFatigue <= 3) {
-    changes.prayerTuning += 1;
+  const cfg = STAT_CONFIG.pray;
+  const changes = { prayerTuning: cfg.prayerTuning, mentalMargin: cfg.mentalMargin };
+  if (gameState.stats.angelFatigue <= cfg.prayerTuningBonusFatigueMax) {
+    changes.prayerTuning += cfg.prayerTuningBonus;
   }
   applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
 }
 
+// 昼、主人公が休む間は天使様が代わりに家事をするため、天使様の疲労が少し溜まる（新規）。
+// 夕方の休むは、天使様が祈りの務め中で家事を肩代わりする状況ではないため対象外。
 function applyRestStats() {
+  const changes = { mentalMargin: STAT_CONFIG.rest.mentalMargin };
+  if (gameState.timeSlot !== 'evening') {
+    changes.angelFatigue = fatigueGainAfterTrust(FATIGUE_CONFIG.restGain);
+  }
   applyStatChanges(
     actionLabels.rest,
-    { mentalMargin: 2 },
+    changes,
     {
       actionCountKey: 'rest',
       beforeApply: (before) => {
-        if (before.mentalMargin <= 2) {
+        if (before.mentalMargin <= STAT_CONFIG.restWhenTiredMentalMarginMax) {
           gameState.memoryFlags.rest_when_tired = true;
         }
       },
@@ -1123,41 +1181,66 @@ function applyRestStats() {
 }
 
 function applyTalkStats() {
-  applyStatChanges(actionLabels.talk, { trust: 2 }, { actionCountKey: 'talk' });
+  applyStatChanges(
+    actionLabels.talk,
+    { trust: STAT_CONFIG.talk.trust },
+    { actionCountKey: 'talk' }
+  );
 }
 
-// 夕方は天使様が屋根裏部屋で祈りの務め中のため、直接のケア（angelFatigue）は発生しない。
+// 夕方は天使様が屋根裏部屋で祈りの務め中のため、直接のケア（angelFatigue）は発生しない
+// （ただし祈るを選んだ場合のみ、日課の疲労上昇をほんの少し相殺する＝下記 applyEveningPrayStats）。
 // 家事は一人で行うぶん caretakerAptitude の伸びを控えめに、祈るは務めに寄り添うぶん
 // prayerTuning を通常より高めにする。休むは通常の rest と同じでよいため専用関数を作らない。
 function applyEveningChoresStats() {
   applyStatChanges(
     actionLabels.chores,
-    { caretakerAptitude: 1, mentalMargin: -1 },
+    Object.assign({}, STAT_CONFIG.eveningChores),
     { actionCountKey: 'chores' }
   );
 }
 
+// 夕方の祈るは、夕方の祈り（天使様の日課）で自動的に溜まる疲労（advanceTime内）を
+// ほんの少し相殺する（新規）。全体の加算を打ち消すほどではない。
 function applyEveningPrayStats() {
-  const changes = { prayerTuning: 3, mentalMargin: -1 };
-  if (gameState.stats.angelFatigue <= 3) {
-    changes.prayerTuning += 1;
+  const cfg = STAT_CONFIG.eveningPray;
+  const changes = {
+    prayerTuning: cfg.prayerTuning,
+    mentalMargin: cfg.mentalMargin,
+    angelFatigue: -FATIGUE_CONFIG.eveningPrayReduce,
+  };
+  if (gameState.stats.angelFatigue <= cfg.prayerTuningBonusFatigueMax) {
+    changes.prayerTuning += cfg.prayerTuningBonus;
   }
   applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
 }
 
 function applySleepRecoveryStats() {
-  applyStatChanges('就寝', { mentalMargin: 2 });
+  applyStatChanges('就寝', { mentalMargin: STAT_CONFIG.sleep.mentalMargin });
+}
+
+// 夕方の祈り（天使様の日課）。プレイヤーの行動と無関係に、夕方フェーズに入るたびに
+// 毎日1回だけ発生させる（呼び出し元は advanceTime のみ＝二重加算防止）。
+function applyEveningPrayerDutyFatigue() {
+  applyStatChanges('天使様の夕方の祈り', {
+    angelFatigue: fatigueGainAfterTrust(FATIGUE_CONFIG.eveningPrayerGain),
+  });
 }
 
 function applyNightCareStats() {
-  const changes = { trust: 1, angelFatigue: -1, mentalMargin: -1 };
-  if (gameState.stats.mentalMargin >= 7) {
-    changes.angelFatigue -= 1;
+  const cfg = STAT_CONFIG.nightCare;
+  const changes = {
+    trust: cfg.trust,
+    angelFatigue: cfg.angelFatigue,
+    mentalMargin: cfg.mentalMargin,
+  };
+  if (gameState.stats.mentalMargin >= cfg.bonusMentalMarginMin) {
+    changes.angelFatigue += cfg.bonusAngelFatigue;
   }
   applyStatChanges(actionLabels.nightCare, changes, {
     actionCountKey: 'nightCare',
     beforeApply: (before) => {
-      if (before.mentalMargin <= 2) {
+      if (before.mentalMargin <= STAT_CONFIG.restWhenTiredMentalMarginMax) {
         gameState.memoryFlags.angel_noticed_player_tired = true;
       }
     },
@@ -1249,6 +1332,12 @@ function advanceTime() {
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
   gameState.lastStatusChangeComment = '';
+
+  // 夕方の祈り（天使様の日課）: プレイヤーの行動と無関係に、夕方フェーズに入る瞬間に
+  // 毎日1回だけ発生させる。advanceTime はこの1箇所からしか呼ばれないため二重加算しない。
+  if (gameState.timeSlot === 'evening') {
+    applyEveningPrayerDutyFatigue();
+  }
 
   if (gameState.timeSlot === 'night') {
     if (forcedNightEvents[gameState.day]) {

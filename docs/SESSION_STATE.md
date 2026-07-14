@@ -5,7 +5,7 @@
 > ローカルの `docs/SESSION_STATE.md` が正、Notionページはミラー。**Claude Codeがタスク完了時に両方を更新する。**
 > チャット側で新しい相談を始めるときは、まずこのページを読む。
 
-**最終更新：2026-07-13（表情設計をチャット新方針＝感情セット＋目の開度＋隈に更新）**
+**最終更新：2026-07-14（angelFatigue 加算実装・stats 2倍スケール化）**
 
 ---
 
@@ -26,6 +26,9 @@
 - 夜ケアCSVパイプライン：実装済み
 - gitガードレール：実装済み
 - **状態棚卸しを実施（2026-07-15）** → `docs/STATE_INVENTORY.md`。要点：`painPoints/painType/painSeeds` は未実装（boolean `pain_tired`/`hide_pain` のみ）、夜ケア数値仕様（careEnergy/careStage/stageProgress/ミニゲーム）も未実装。詳細・仕様乖離リストは同ファイル参照。
+- **angelFatigue の加算を実装（2026-07-14）**：これまで単調減少だった `angelFatigue` に、夕方の祈り（天使様の日課。プレイヤー行動と無関係に毎晩1回、`advanceTime()` 内で発生）と昼の rest（少量）の2つの加算源を追加し、「昼に溜まり夜ケアで減る」往復を実装。trust が上がると加算量が下がる（`fatigueGainAfterTrust`）。上限到達時はclampのみでペナルティなし（描写変更は別タスク）。
+- **stats を全体2倍スケール化（2026-07-14）**：28日想定に合わせ `statsDefault`/`statsRange`（trust/prayerTuning/caretakerAptitude: 0–60、angelFatigue: 0–20、mentalMargin/mentalMarginMax: 0–20）と各増減幅・比較閾値を2倍化。増減量は `app.js` の `STAT_CONFIG` / `FATIGUE_CONFIG` に集約済み（次の数値調整はここを触ればよい）。`scenario-data.js` の `statusTexts` 閾値も追随して2倍化。
+- ミニゲーム（careEnergy/careStage/stageProgress）は今回も未実装のまま（対象外タスク）。
 
 > ⚠️ **要確認**：このプロジェクトハブのトップに「全年齢基盤」「14日間MVP」と記載が残っている。R-18のみ方針に更新が必要。CURRENT_SPEC v0.3 も同様に要確認。
 
