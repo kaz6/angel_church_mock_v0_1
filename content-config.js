@@ -19,5 +19,5 @@
 'use strict';
 
 window.CONTENT_CONFIG = {
-  mode: 'all_ages', // 'all_ages' | 'r18'
+  mode: 'r18', // 'all_ages' | 'r18'（既定はr18。DECISION_LOG「当面r18モード固定運用」に合わせる）
 };
