@@ -25,6 +25,7 @@
 - 全年齢/R-18 差し替え基盤：実装済み
 - 夜ケアCSVパイプライン：実装済み
 - gitガードレール：実装済み
+- **状態棚卸しを実施（2026-07-15）** → `docs/STATE_INVENTORY.md`。要点：`painPoints/painType/painSeeds` は未実装（boolean `pain_tired`/`hide_pain` のみ）、夜ケア数値仕様（careEnergy/careStage/stageProgress/ミニゲーム）も未実装。詳細・仕様乖離リストは同ファイル参照。
 
 > ⚠️ **要確認**：このプロジェクトハブのトップに「全年齢基盤」「14日間MVP」と記載が残っている。R-18のみ方針に更新が必要。CURRENT_SPEC v0.3 も同様に要確認。
 
