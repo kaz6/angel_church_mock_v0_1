@@ -177,7 +177,7 @@ const statsDefault = {
   caretakerAptitude: 0,
   mentalMargin: 10,
   mentalMarginMax: 20,
-  angelFatigue: 10,
+  angelFatigue: 20, // A: 28日シミュ確定（初期は疲れきった天使様＝範囲0–20の上限）
 };
 
 const statsRange = {
@@ -221,10 +221,10 @@ const STAT_CONFIG = {
 // angelFatigue の加算（新規・往復させる側）専用の設定。
 // 夕方の祈り（天使様の日課）はプレイヤー行動と無関係に毎晩1回だけ発生させる（advanceTime参照）。
 const FATIGUE_CONFIG = {
-  eveningPrayerGain: 4, // 夕方の祈り（日課）で毎晩自動的に溜まる量（trust reductionの対象）
+  eveningPrayerGain: 6, // B: 28日シミュ確定（4→6。日課の再蓄積を強め夜ケアの純減を薄める＝14日着地の本丸）
   restGain: 1, // 昼、主人公が休む間に天使様が家事をする分、少し溜まる量（trust reductionの対象）
   eveningPrayReduce: 1, // 夕方に祈るを選んだ場合、日課の疲労上昇をほんの少し相殺する量
-  trustReductionRate: 0.01, // trust 1につき、疲労の加算量をこの割合だけ抑える（下限0、負にしない）
+  trustReductionRate: 0.009, // D改: 28日シミュ確定（0.01→0.009。後半まで蓄積レートを緩やかに下げる。trust自体の伸びは不変）
 };
 
 // trust が上がるほど疲労の「加算量」を抑える（C. 全体に効く。祈りのみ限定でない）。

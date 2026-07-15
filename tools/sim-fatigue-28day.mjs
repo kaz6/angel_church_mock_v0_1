@@ -30,9 +30,9 @@
 'use strict';
 
 // ---- app.js から写した定数（同期必須） ----
-const STATS_INIT = { angelFatigue: 10, trust: 0, mentalMargin: 10 };
+const STATS_INIT = { angelFatigue: 20, trust: 0, mentalMargin: 10 }; // A: 確定値（初期20）
 const RANGE = { angelFatigue: [0, 20], trust: [0, 60], mentalMargin: [0, 20] };
-const FATIGUE_CONFIG = { eveningPrayerGain: 4, restGain: 1, eveningPrayReduce: 1, trustReductionRate: 0.01 };
+const FATIGUE_CONFIG = { eveningPrayerGain: 6, restGain: 1, eveningPrayReduce: 1, trustReductionRate: 0.009 }; // B/D改: 確定値
 const NIGHTCARE = { trust: 2, angelFatigue: -2, mentalMargin: -2, bonusAngelFatigue: -2, bonusMentalMarginMin: 14 };
 const SLEEP_MARGIN = 4;
 
