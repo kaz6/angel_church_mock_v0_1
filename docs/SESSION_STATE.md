@@ -64,6 +64,7 @@
 - **angelFatigue の加算を実装（土台①・2026-07-15）**：夕方の祈り（日課・每日1回）＋昼restで加算し往復化（単調減少を解消）。trustで加算量が減衰。上限はclampのみ・ペナルティなし。増減は app.js の STAT_CONFIG/FATIGUE_CONFIG に集約。stats全体を2倍スケール化。→ ▶本体の単調減少問題は解消済み（上の⚠️メモは古い）。詳細は DECISION_LOG「2026-07-14｜angelFatigue の加算設計を実装」
 - **content-config.js の既定を r18 化（土台③・2026-07-15）**：`CONTENT_CONFIG.mode` の既定値を `all_ages` → `r18` に変更（DECISION_LOG「当面r18モード固定運用」に合わせた）。切替機構（`setMode` / デバッグパネルのモード切替ボタン）はそのまま維持。Playwright確認済み：起動直後に `AssetResolver.getMode() === 'r18'`、デバッグパネル `contentMode` も `r18`、pageerror 0。あわせて `NEXT_TASKS.md` のドキュメント間矛盾（夜ケア数値仕様 careStage/stageProgress を「確定済み」と誤記していた箇所）を訂正（土台②）。
 - **28日疲労シミュレーション実施（2026-07-15）**：本体を変えず `tools/sim-fatigue-28day.mjs` を新規作成し、現行 FATIGUE_CONFIG で28日推移を検証。結論＝**現行値では「14日で疲労が取れる」は成立せず、取れるのが早すぎる**（世話プレイで4〜9日目、最も緩いプレイでも12日目に0付近）。trust が全プロファイルで14日目に上限60へ飽和。調整提案は Notion タスクページ「実装結果」に記載（数値は未変更＝チャット側で判断）。
+- **疲労値 A+D 調整の再シミュ実施（2026-07-15）**：`tools/sim-fatigue-tune.mjs` で A（初期10→18/20）×D（trust上昇を緩やかに）をスイープ。A+D で baseline の着地 5日→**約10日**・trust飽和 10日→**約15日**に改善するが、**balanced/世話プレイでは14日着地に届かない（約10日止まり）**。推奨＝初期20＋trust上昇~0.7倍。**14日を確実に狙うには次に B/C（eveningPrayerGain↑ or 夜ケア減少量↓）が必要**というのがデータの示唆。app.js は未変更（推奨のみ・確定はチャット側）。
 
 > ✅ **状態棚卸し完了**（「📦 STATE_INVENTORY」参照）。以下が判明した：
 > - **`painPoints` / `painType` / `painSeeds` はコードに0件**。`pain_tired` / `hide_pain` の boolean 2つのみ。**6分類は一度も実装されていない**（→ 捨てるものがない。実装前に直せる最良のタイミング）
