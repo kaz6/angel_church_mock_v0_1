@@ -29,7 +29,7 @@
 | `content-config.js` | 全年齢/R-18 モード設定（`CONTENT_CONFIG.mode`） |
 | `asset-resolver.js` | normal/adult 参照の解決層（`AssetResolver`。106行） |
 | `docs/*.md` | 設計・決定の永続記録（DECISION_LOG / SESSION_STATE / 本ファイル） |
-| `CURRENT_SPEC.md` / `CONCEPT.md` / `CHARACTER_DESIGN.md` / `AI_GUIDELINES.md` / `PROJECT_BRIEF.md` / `NEXT_TASKS.md` | 設計ドキュメント |
+| `CURRENT_SPEC.md` / `CONCEPT.md` / `docs/CHARACTER_DESIGN.md` / `AI_GUIDELINES.md` / `PROJECT_BRIEF.md` / `NEXT_TASKS.md` | 設計ドキュメント |
 
 ---
 
@@ -176,7 +176,7 @@
 | --- | --- | --- | --- |
 | **痛みベクトル/6分類/種** | painPoints/painType/painSeeds を詳述（CURRENT_SPEC.md:819–917） | boolean `pain_tired`/`hide_pain` の2フラグのみ | **大**（ただし仕様書自身が「未実装・仕様メモのみ」と明記＝認識は一致） |
 | **夜ケア数値仕様** | 「確定済み数値仕様」として careStage 1〜5 / stageProgress 0〜100 / mentalMargin→careEnergy 生成（NEXT_TASKS.md:205、PROJECT_BRIEF/開発指示書） | careEnergy/careStage/stageProgress 無し。固定 stat 変化のみ | **大**（CURRENT_SPEC.md:540 は「成果判定未実装」と整合的だが、他ドキュメントは"確定"と記載＝**ドキュメント間でも不一致**） |
-| **表情システム** | 「感情セット＋目の開度(糸目/半目)＋隈」3レイヤー（DECISION_LOG / CHARACTER_DESIGN.md） | `angelExpression` は自由記述の気分語文字列（`tired/soft/gentle/sleepy/shocked` 等）。糸目/隈/開度の構造は無し | **大**（設計は最新、実装は旧プレースホルダのまま） |
+| **表情システム** | 「感情セット＋目の開度(糸目/半目)＋隈」3レイヤー（DECISION_LOG / docs/CHARACTER_DESIGN.md） | `angelExpression` は自由記述の気分語文字列（`tired/soft/gentle/sleepy/shocked` 等）。糸目/隈/開度の構造は無し | **大**（設計は最新、実装は旧プレースホルダのまま） |
 | **日数構成** | 28日構成が有力（CONCEPT.md）、14/21/28 の節目 | `END_DAY=7`、7日で終了 | 中（CURRENT_SPEC.md:163 で「7日モック優先・以降未実装」と明記済み） |
 | **エンディング分岐** | クリア条件・28日目選択で分岐（CURRENT_SPEC.md:733,770） | 固定の終了画面のみ、`endingTexts` は未使用 | 中（spec で「未実装・案のみ」と明記） |
 | **モード運用** | 「当面 r18 モード固定で運用」（DECISION_LOG） | `content-config.js` の既定は `mode: 'all_ages'` | 小（既定値が方針と逆。切替1箇所なので変更は容易だが現状は all_ages 起動） |

@@ -68,7 +68,7 @@
 - **疲労値を確定し app.js に反映（2026-07-15）**：A `statsDefault.angelFatigue=20` ／ B `FATIGUE_CONFIG.eveningPrayerGain 4→6` ／ D改 `trustReductionRate 0.01→0.009`（trustの伸び＝talk/nightCare.trust は不変）。C・範囲・式は不変更。**balanced が14日ちょうど着地**（14日目=1→0安定）。世話中心11日/休みがざ16日/関係中心（家事皮無の極端プレイ）のみ頭打ち。commit/push済み。詳細は DECISION_LOG「2026-07-15｜疲労値の確定（最終）」
 
 > ✅ **土台作業完了（2026-07-15）**：①angelFatigue の加算実装 / docs同期（Notion→ローカル） / ②ドキュメント矛盾解消（NEXT_TASKS） / ③content-config を r18 に。すべて commit/push 済み。
-> ⚠️ **残課題**：`CHARACTER_DESIGN.md` §3「表情システム」が旧版（「目の開度×隈の2軸・検討中」のまま）。D-18 で確定した3軸11レイヤーが未反映。**別タスクで最新化が必要（発注前でよい）**。
+> ✅ **CHARACTER_DESIGN 最新化・整理済み（2026-07-20）**：Notion内部版を `docs/CHARACTER_DESIGN.md` に同期（3軸11レイヤー等を反映）。旧ルート `CHARACTER_DESIGN.md`（表情2軸の旧版）は削除し、参照は `docs/` へ向け直し済み。
 > - **`painPoints`** / **`painType`** / **`painSeeds`** はコードに0件。`pain_tired` / `hide_pain` の boolean 2つのみ。**6分類は一度も実装されていない**（→ 捨てるものがない。実装前に直せる最良のタイミング）
 > - ⚠️ **`angelFatigue`** が単調減少。増加させる処理がコードに存在しない。夜ケア設計の土台が欠けている
 > - ⚠️ ドキュメント間で不一致：`NEXT_TASKS.md` が夜ケアの数値仕様（careStage 1〜5 等）を「確定済み」と記述。実装には無く、CURRENT_SPEC は「未実装」と書いている

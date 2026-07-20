@@ -62,7 +62,7 @@
 2. **`docs/DECISION_LOG.md` を読む** — ここで**却下済みの案は再提案しない**。設計思想を引き継ぐ。
 3. **`docs/SESSION_STATE.md` を読む** — 現在地・次にやること・未確定項目を把握する。
 4. **指定された Notion タスクページ（「進行中」配下）を読む** — 実装依頼はここにある（§Notion 経由のタスク運用）。
-5. 参考（必要に応じて）：`CURRENT_SPEC.md`（実装仕様）、`CONCEPT.md`（体験の核）、`AI_GUIDELINES.md`（作業ルール）、`CHARACTER_DESIGN.md`（キャラ設計）、`NEXT_TASKS.md`。
+5. 参考（必要に応じて）：`CURRENT_SPEC.md`（実装仕様）、`CONCEPT.md`（体験の核）、`AI_GUIDELINES.md`（作業ルール）、`docs/CHARACTER_DESIGN.md`（キャラ設計）、`NEXT_TASKS.md`。
 6. **今回のタスクの理解を1〜3行で述べる**（受け止め違いをここで潰す）。
 7. 実装は **1機能ずつ → 動作確認 → コミット**。大規模リファクタは禁止。
 8. R-18 テキスト・CG の中身は書かない（`[TODO:作者差し込み]` プレースホルダのみ）。センシティブ素材は git にコミットしない（`.gitignore` 済）。
