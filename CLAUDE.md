@@ -22,6 +22,33 @@
 
 ---
 
+## ドキュメントの正本
+- **Notionが正本。`docs/` は実装参照用の写し。**
+- 競合したらNotionを優先する。`docs/` の記述を根拠に
+  仕様を判断しない。
+- `docs/DECISION_LOG.md` `SESSION_STATE.md` への追記は
+  作業中の暫定記録。**セッション終了時に必ずNotionへ反映する**
+  （反映前の `docs/` は未確定扱い）。
+- 詳細：Notion `00_shared/ドキュメント運用規約`
+
+## Notion ページID（書き戻し先・参照先）
+
+`docs/` を Notion へ反映する際・Notion を参照する際は、必ず下表のIDで名指しする。
+
+| 用途 | ページ | ID |
+| --- | --- | --- |
+| 書き戻し | DECISION_LOG（設計判断の記録） | `39ca8a5d-fd45-81ee-b4a6-f6ed085383bd` |
+| 書き戻し | SESSION_STATE（現在地） | `39ca8a5d-fd45-811d-a793-c644823551f7` |
+| 参照 | プロジェクトルート | `399a8a5d-fd45-812a-917f-c536b4a2ef1d` |
+| 参照 | CURRENT_SPEC v0.4（仕様の正本） | `399a8a5d-fd45-813c-acb5-dcea4b129871` |
+| 参照 | 夜ケアパート仕様（v0.1） | `39ca8a5d-fd45-8100-9fb5-f810daa95948` |
+| 参照 | _tasks（実装タスク） | `39da8a5d-fd45-81af-865b-e12e0f457c03` |
+| 参照 | 人間用 TODO | `3a0a8a5d-fd45-811e-8a32-cd8db8fb9c02` |
+
+★ **天使様（本企画）と遠征ギルドログの両方に「DECISION_LOG」「SESSION_STATE」が存在する。検索で当てにいくと取り違える。必ず上表のIDで指定すること。**
+
+---
+
 ## Notion 経由のタスク運用（実装依頼の流れ）
 
 **今後、チャットと Claude Code のやり取りは Notion 経由で行う。**

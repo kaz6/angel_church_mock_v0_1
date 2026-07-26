@@ -1,5 +1,8 @@
 # Claude / AI tool local files
-.claude/
+.claude/*
+# ただし共有スキル（session-end 等）はリポジトリにコミットして残す。
+# クラウド実行の Claude Code は個人スキル ~/.claude/skills/ を保持しないため。
+!.claude/skills/
 
 # OS files
 Thumbs.db
