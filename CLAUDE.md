@@ -29,7 +29,7 @@
 - `docs/DECISION_LOG.md` `SESSION_STATE.md` への追記は
   作業中の暫定記録。**セッション終了時に必ずNotionへ反映する**
   （反映前の `docs/` は未確定扱い）。
-- 詳細：Notion `00_shared/ドキュメント運用規約`
+- 詳細：Notion `02_operations/ドキュメント運用規約`
 
 ## Notion ページID（書き戻し先・参照先）
 
