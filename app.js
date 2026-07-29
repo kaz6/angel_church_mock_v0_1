@@ -1322,19 +1322,22 @@ function onResultContinueClick() {
 }
 
 function advanceTime() {
-  const idx = TIME_SLOTS.indexOf(gameState.timeSlot);
-  if (gameState.timeSlot !== 'night') {
-    gameState.timeSlot = TIME_SLOTS[idx + 1];
-  } else {
-    gameState.day += 1;
-    gameState.timeSlot = 'morning';
+  // 夜からの日送りは finishNight() に一本化する。
+  // 旧実装はここで day += 1 しており、就寝回復（余白）も END_DAY 判定も通らない
+  // 「第二の日送り経路」になっていた。夜なし演出を入れると顕在化するため塞ぐ。
+  if (gameState.timeSlot === 'night') {
+    finishNight();
+    return;
   }
+
+  const idx = TIME_SLOTS.indexOf(gameState.timeSlot);
+  gameState.timeSlot = TIME_SLOTS[idx + 1];
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
   gameState.lastStatusChangeComment = '';
 
   // 夕方の祈り（天使様の日課）: プレイヤーの行動と無関係に、夕方フェーズに入る瞬間に
-  // 毎日1回だけ発生させる。advanceTime はこの1箇所からしか呼ばれないため二重加算しない。
+  // 毎日1回だけ発生させる。朝→昼→夕方→夜の遷移はこの1箇所だけなので二重加算しない。
   if (gameState.timeSlot === 'evening') {
     applyEveningPrayerDutyFatigue();
   }
@@ -1345,15 +1348,36 @@ function advanceTime() {
     } else if (gameState.day >= 2) {
       enterNightCare();
     } else {
-      gameState.freeStep = 'select';
-      gameState.currentLocation = '個室';
-      render();
+      // 夜ケアの対象外（1日目）。旧実装はここで freeStep='select' に落ちており、
+      // renderFree が timeSlot を見ないため「夜に行動ボタンが出る」状態だった。
+      // 就寝処理へ合流させる。
+      finishNight();
     }
-  } else {
-    gameState.freeStep = 'select';
-    gameState.currentLocation = '個室';
-    render();
+    return;
   }
+
+  gameState.freeStep = 'select';
+  gameState.currentLocation = '個室';
+  render();
+}
+
+// 夜の終わり（就寝）の共通処理。夜ケアの有無にかかわらず必ずここを通す。
+// 回復・終了判定・日送りの三つを持つ唯一の場所。
+function finishNight() {
+  applySleepRecoveryStats();
+
+  if (gameState.day >= END_DAY) {
+    showEndingScreen();
+    return;
+  }
+
+  gameState.day += 1;
+  gameState.timeSlot = 'morning';
+  gameState.freeStep = 'select';
+  gameState.pendingAction = null;
+  gameState.pendingEntryId = null;
+  gameState.currentLocation = '個室';
+  render();
 }
 
 function enterForcedNightEvent() {
@@ -1443,20 +1467,7 @@ function enterNightCare() {
 function onNightCareContinue() {
   addLog('静かに眠りについた。');
   gameState.pendingNightCareId = null;
-  applySleepRecoveryStats();
-
-  if (gameState.day >= END_DAY) {
-    showEndingScreen();
-    return;
-  }
-
-  gameState.day += 1;
-  gameState.timeSlot = 'morning';
-  gameState.freeStep = 'select';
-  gameState.pendingAction = null;
-  gameState.pendingEntryId = null;
-  gameState.currentLocation = '個室';
-  render();
+  finishNight();
 }
 
 function showEndingScreen() {
