@@ -199,7 +199,7 @@ const STAT_CONFIG = {
     prayerTuningBonusFatigueMax: 6, // angelFatigue がこの値以下ならボーナス
   },
   rest: { mentalMargin: 4 },
-  talk: { trust: 4 },
+  talk: { trust: 3 },
   eveningChores: { caretakerAptitude: 2, mentalMargin: -2 },
   eveningPray: {
     prayerTuning: 6,
@@ -210,21 +210,37 @@ const STAT_CONFIG = {
   sleep: { mentalMargin: 4 },
   nightCare: {
     trust: 2,
-    angelFatigue: -2,
-    mentalMargin: -2,
-    bonusAngelFatigue: -2,
-    bonusMentalMarginMin: 14, // mentalMargin がこの値以上ならボーナス減算
+    mentalMargin: -2, // 余白を精力に変換する分の消費（据え置き）
+    // ★疲労の回復量は固定値ではなく「その夜の心身の余白」から導出する
+    //   （昼の余白 → 夜の精力 → 耐えた量、という仕様上の経路。nightCareFatigueRecovery 参照）。
+    //   成功度5段階に合わせ、余白を bandSize 刻みで bands 帯に割り、min..max を等間隔に割り当てる。
+    //   帯：余白 0-3 / 4-7 / 8-11 / 12-15 / 16-20 → 回復量 2 / 3 / 4 / 5 / 6
+    //   旧「余白14以上で追加 -2」ボーナスはこの式に吸収したため廃止（二重取りになるため）。
+    fatigueRecoveryMin: 2,
+    fatigueRecoveryMax: 6,
+    fatigueRecoveryBands: 5,
+    fatigueRecoveryBandSize: 4,
   },
   restWhenTiredMentalMarginMax: 4, // rest_when_tired / angel_noticed_player_tired フラグの閾値
+};
+
+// 未実装機能のための確定値。**定数として置くだけで、判定ロジックはまだ作らない。**
+// 参照元の機能（おあずけの選択／エンディング分岐）を実装するときにここを見る。
+const UNLOCK_CONFIG = {
+  holdbackTrustMin: 50, // おあずけを選べるようになる trust のしきい値（0-60スケール）
+  holdbackMinDay: 8, // 併せて日数の床がある（告白の日＝7日目より後）
+  endingGateMin: 50, // エンディングのゲート：prayerTuning / caretakerAptitude のしきい値
 };
 
 // angelFatigue の加算（新規・往復させる側）専用の設定。
 // 夕方の祈り（天使様の日課）はプレイヤー行動と無関係に毎晩1回だけ発生させる（advanceTime参照）。
 const FATIGUE_CONFIG = {
   eveningPrayerGain: 6, // B: 28日シミュ確定（4→6。日課の再蓄積を強め夜ケアの純減を薄める＝14日着地の本丸）
-  restGain: 1, // 昼、主人公が休む間に天使様が家事をする分、少し溜まる量（trust reductionの対象）
+  // ★「休む」の疲労加算は廃止（旧 restGain: 1）。主人公が来る前と後で天使様の家事量は
+  //   変わらないのだから、増えも減りもしないのが正しい。旧説明（休む間に天使様が家事を
+  //   肩代わりする分）はレバーCを却下した理由と同じ構造の飛躍だった（符号が逆なだけ）。
   eveningPrayReduce: 1, // 夕方に祈るを選んだ場合、日課の疲労上昇をほんの少し相殺する量
-  trustReductionRate: 0.009, // D改: 28日シミュ確定（0.01→0.009。後半まで蓄積レートを緩やかに下げる。trust自体の伸びは不変）
+  trustReductionRate: 0.01, // 28日シミュ最終確定（0.009→0.01）
 };
 
 // trust が上がるほど疲労の「加算量」を抑える（C. 全体に効く。祈りのみ限定でない）。
@@ -641,8 +657,7 @@ const DAY_RULES = [
       // ★ステータス特例：angelFatigue を宣言しない ＝ 回復しない（天使様は我慢した）。
       //   trust は上げる（告白して受け止められる日であり、信頼が最も動く日。
       //   ここで伸びないと14日目のおあずけ解禁＝信頼最大の逆算が合わない）。
-      //   数値は仮置き。
-      stats: { trust: 4 },
+      stats: { trust: 5 }, // 28日シミュ最終確定（+4 → +5）
       text_normal: [
         '[TODO:作者差し込み] 天使様は何も言わず、あなたをそっと抱き寄せた。',
         '[TODO:作者差し込み] その夜、ケアはなかった。ただ、腕の中で息を整えているうちに、いつのまにか眠っていた。',
@@ -1223,13 +1238,11 @@ function applyPrayStats() {
   applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
 }
 
-// 昼、主人公が休む間は天使様が代わりに家事をするため、天使様の疲労が少し溜まる（新規）。
-// 夕方の休むは、天使様が祈りの務め中で家事を肩代わりする状況ではないため対象外。
+// 休むは主人公の心身の余白だけを回復させる。**天使様の疲労には触れない**
+// （増やさない＝FATIGUE_CONFIG のコメント参照。減らすのはレバーCとして却下済み）。
+// 休むが天使様に効くのは「余白が増える → 夜ケアの回復量が上がる」経路だけ。
 function applyRestStats() {
   const changes = { mentalMargin: STAT_CONFIG.rest.mentalMargin };
-  if (gameState.timeSlot !== 'evening') {
-    changes.angelFatigue = fatigueGainAfterTrust(FATIGUE_CONFIG.restGain);
-  }
   applyStatChanges(
     actionLabels.rest,
     changes,
@@ -1291,16 +1304,28 @@ function applyEveningPrayerDutyFatigue() {
   });
 }
 
+// 夜ケアの疲労回復量（負値）を、その夜の心身の余白から導出する。
+// 余白が多い夜ほど深く受け止められる＝天使様の疲労が多く抜ける、という仕様上の経路。
+// 帯の切り方は STAT_CONFIG.nightCare のコメントに明記（余白 0-3/4-7/8-11/12-15/16-20）。
+function nightCareFatigueRecovery(mentalMargin) {
+  const cfg = STAT_CONFIG.nightCare;
+  const lastBand = cfg.fatigueRecoveryBands - 1;
+  const band = Math.min(
+    lastBand,
+    Math.floor(mentalMargin / cfg.fatigueRecoveryBandSize)
+  );
+  const span = cfg.fatigueRecoveryMax - cfg.fatigueRecoveryMin;
+  return -Math.round(cfg.fatigueRecoveryMin + (span * band) / lastBand);
+}
+
 function applyNightCareStats() {
   const cfg = STAT_CONFIG.nightCare;
   const changes = {
     trust: cfg.trust,
-    angelFatigue: cfg.angelFatigue,
+    // ★余白の消費（mentalMargin）を差し引く前の値で判定する。
+    angelFatigue: nightCareFatigueRecovery(gameState.stats.mentalMargin),
     mentalMargin: cfg.mentalMargin,
   };
-  if (gameState.stats.mentalMargin >= cfg.bonusMentalMarginMin) {
-    changes.angelFatigue += cfg.bonusAngelFatigue;
-  }
   applyStatChanges(actionLabels.nightCare, changes, {
     actionCountKey: 'nightCare',
     beforeApply: (before) => {
