@@ -4,7 +4,7 @@
 
    構成:
    1. 定数・データ定義（memoryFlags初期値 / sceneDefinitions / actionDefinitions
-      / freeActionEvents / forcedNightEvents / nightCareEvents / slotIntroTexts）
+      / freeActionEvents / DAY_RULES / nightCareEvents / slotIntroTexts）
    2. gameState と状態遷移ロジック
    3. 描画（render）まわり
    4. セーブ / ロード / リセット
@@ -590,26 +590,72 @@ const freeActionEvents = [
 // 本文・選択肢ラベル・選択後テキスト・表情・状態文・場所は
 // scenario-data.js の SCENARIO_DATA.nightEvents（day で一致）から取得する。
 // ここ（app.js）に残すのは、日ごとの setFlags / relationChange 等の「処理」のみ。
-const forcedNightEvents = {
-  2: {
-    id: 'pain_event',
-    relationChange: 1,
-  },
-  3: {
-    id: 'remembered_event',
-    setFlags: { remembered_by_angel: true },
-    relationChange: 1,
-  },
-  7: {
-    id: 'confession_day_event',
-  },
-};
+/* ---------------------- 日構成の定義（ルール配列・A-2） ----------------------
+   日ごとの特別な振る舞いをコードの分岐ではなくデータで宣言する。
 
-const forcedNightLogLabels = {
-  2: '天使様が、あなたの疲れに気づいたようだった。',
-  3: '天使様が、前の晩のことを覚えていた。',
-  7: '夜、懺悔室で天使様と向き合った。',
-};
+   マッチ条件（どちらか一方を書く）:
+     day: N            … その日だけ
+     from: N, to: M    … 期間。from 省略で「M日目まで」、to 省略で「N日目以降」
+
+   優先度の規則（重ねて適用する）:
+     1. 配列の**先頭から順に**マッチしたルールを浅くマージする ＝ **後に書いたものが勝つ**
+     2. 同じキーは上書き。オブジェクト値も丸ごと置き換える（深いマージはしない）
+     3. したがって **期間ルールを先に、単日ルールを後に書く**（単日で期間を上書きできる）
+
+   キー:
+     nightEvent … 夜の強制イベント { id, setFlags?, relationChange?, logLabel? }
+   ※ 期間ルール（8〜14日のコマンド差し替え等）はステップ5以降で追加する。
+      ここでは既存の 2/3/7日目をそのまま移設しただけで、振る舞いは変えていない。 */
+const DAY_RULES = [
+  {
+    day: 2,
+    nightEvent: {
+      id: 'pain_event',
+      relationChange: 1,
+      logLabel: '天使様が、あなたの疲れに気づいたようだった。',
+    },
+  },
+  {
+    day: 3,
+    nightEvent: {
+      id: 'remembered_event',
+      setFlags: { remembered_by_angel: true },
+      relationChange: 1,
+      logLabel: '天使様が、前の晩のことを覚えていた。',
+    },
+  },
+  {
+    day: 7,
+    nightEvent: {
+      id: 'confession_day_event',
+      logLabel: '夜、懺悔室で天使様と向き合った。',
+    },
+  },
+];
+
+function matchesDayRule(rule, day) {
+  if (rule.day !== undefined) return rule.day === day;
+  const from = rule.from === undefined ? -Infinity : rule.from;
+  const to = rule.to === undefined ? Infinity : rule.to;
+  return day >= from && day <= to;
+}
+
+// その日の計画を解決する。日付の知識はこの関数の内側だけに閉じる。
+function getDayPlan(day) {
+  const plan = {};
+  DAY_RULES.forEach((rule) => {
+    if (!matchesDayRule(rule, day)) return;
+    Object.keys(rule).forEach((key) => {
+      if (key === 'day' || key === 'from' || key === 'to') return;
+      plan[key] = rule[key];
+    });
+  });
+  return plan;
+}
+
+function getForcedNightEvent(day) {
+  return getDayPlan(day).nightEvent || null;
+}
 
 // 選択肢 id → memoryFlags 処理（id の意味づけは app.js 側で解釈する）
 const nightEventChoiceFlags = {
@@ -1343,7 +1389,7 @@ function advanceTime() {
   }
 
   if (gameState.timeSlot === 'night') {
-    if (forcedNightEvents[gameState.day]) {
+    if (getForcedNightEvent(gameState.day)) {
       enterForcedNightEvent();
     } else if (gameState.day >= 2) {
       enterNightCare();
@@ -1381,7 +1427,7 @@ function finishNight() {
 }
 
 function enterForcedNightEvent() {
-  const fe = forcedNightEvents[gameState.day];
+  const fe = getForcedNightEvent(gameState.day);
   const scenarioEvent = getNightEventDisplay(gameState.day);
   gameState.freeStep = 'forced';
   gameState.pendingForcedChoiceId = null;
@@ -1393,7 +1439,7 @@ function enterForcedNightEvent() {
 
   const key = `forced_night_${gameState.day}`;
   if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
-  addLog(forcedNightLogLabels[gameState.day] || '夜の出来事があった。');
+  addLog(fe.logLabel || '夜の出来事があった。');
   render();
 }
 
