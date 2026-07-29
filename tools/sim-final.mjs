@@ -409,3 +409,25 @@ for (const [name, min, max] of [['段階5', 2, 6], ['平方根', 2, 6], ['線形
     { ...BASE, talkFatigue: 0, careMin: min, careMax: max, careModel: CARE_MODELS[name] });
 }
 console.log('');
+
+/* ================== 9) 実機突き合わせ用：確定構成の1〜7日目 ==================
+   確定構成（段階5 / 回復 2〜6 / 会話の疲労軽減 0）で、各日の「就寝直後」の値を出す。
+   Playwright での通しプレイ結果と1日単位で突き合わせるための表。 */
+console.log('');
+console.log('='.repeat(96));
+console.log('【9】確定構成（段階5 / 回復 2〜6 / 会話疲労0）の1〜7日目：各日の就寝直後の値');
+console.log('='.repeat(96));
+{
+  const cfg = { ...BASE, talkFatigue: 0, careMin: 2, careMax: 6, careModel: CARE_MODELS.段階5 };
+  const sim = makeSim(cfg);
+  for (const [k, p] of Object.entries(PATTERNS)) {
+    const r = sim.run({ slots: p.slots, days: 7 });
+    console.log('');
+    console.log(`  --- ${p.label.trim()}（${p.slots.join(' / ')}） ---`);
+    console.log('  day |  fatigue  trust  margin');
+    for (let i = 0; i < 7; i++) {
+      console.log(`  ${String(i + 1).padStart(3)} | ${String(r.fatigue[i]).padStart(8)}${String(r.trust[i]).padStart(7)}${String(r.margin[i]).padStart(8)}`);
+    }
+  }
+}
+console.log('');
