@@ -630,6 +630,24 @@ const DAY_RULES = [
       id: 'confession_day_event',
       logLabel: '夜、懺悔室で天使様と向き合った。',
     },
+    // 告白の日。夜ケアは行わず、抱き締められて眠るだけ（強制夜なし）。
+    night: 'none',
+    nightHold: {
+      location: '個室',
+      angelExpression: 'gentle',
+      angelStatus: 'あなたを抱き寄せ、静かに息をしている',
+      logLabel: '天使様に抱き締められたまま、眠りについた。',
+      statLabel: '寄り添って眠る',
+      // ★ステータス特例：angelFatigue を宣言しない ＝ 回復しない（天使様は我慢した）。
+      //   trust は上げる（告白して受け止められる日であり、信頼が最も動く日。
+      //   ここで伸びないと14日目のおあずけ解禁＝信頼最大の逆算が合わない）。
+      //   数値は仮置き。
+      stats: { trust: 4 },
+      text_normal: [
+        '[TODO:作者差し込み] 天使様は何も言わず、あなたをそっと抱き寄せた。',
+        '[TODO:作者差し込み] その夜、ケアはなかった。ただ、腕の中で息を整えているうちに、いつのまにか眠っていた。',
+      ],
+    },
   },
 ];
 
@@ -786,7 +804,7 @@ function createInitialState() {
     timeSlot: 'noon',
     phase: 'opening', // 'title' | 'opening' | 'free' | 'ending'
     currentSceneId: 'arrival',
-    freeStep: null, // 'select' | 'result' | 'observe' | 'forced' | 'forced_after' | 'night_care'
+    freeStep: null, // 'select' | 'result' | 'observe' | 'forced' | 'forced_after' | 'night_care' | 'night_hold'
     pendingAction: null,
     pendingEntryId: null,
     pendingForcedChoiceId: null,
@@ -1392,7 +1410,7 @@ function advanceTime() {
     if (getForcedNightEvent(gameState.day)) {
       enterForcedNightEvent();
     } else if (gameState.day >= 2) {
-      enterNightCare();
+      enterNightPart();
     } else {
       // 夜ケアの対象外（1日目）。旧実装はここで freeStep='select' に落ちており、
       // renderFree が timeSlot を見ないため「夜に行動ボタンが出る」状態だった。
@@ -1456,13 +1474,61 @@ function onForcedChoiceClick(choice) {
     gameState.freeStep = 'forced_after';
     render();
   } else {
-    enterNightCare();
+    enterNightPart();
   }
 }
 
 function onForcedAfterContinue() {
   gameState.pendingForcedChoiceId = null;
+  enterNightPart();
+}
+
+/* 夜の入口。判定順は仕様で確定している（DECISION_LOG 2026-07-29）:
+     ① 特別日の強制夜なし ← 最優先。他の条件を無視する。
+        ★おあずけの連続カウントには算入しない（カウンタ据え置き）
+     ② おあずけ3日ルール（天使様の我慢が効かなくなる）
+     ③ プレイヤーのおあずけ選択（信頼が最大＝閾値9割程度に達するまで選択不可）
+   ②③ の実装はこのタスクの範囲外。器だけ空けてある。 */
+function enterNightPart() {
+  const plan = getDayPlan(gameState.day);
+
+  // ① 強制夜なし
+  if (plan.night === 'none') {
+    enterNightHold(plan);
+    return;
+  }
+
+  // ② おあずけ3日ルール / ③ プレイヤーのおあずけ選択 はここに入る（未実装）
+
   enterNightCare();
+}
+
+// 夜なしの日の演出ステップ。無言で朝にせず、必ずテキストを一枚挟む。
+function enterNightHold(plan) {
+  const hold = plan.nightHold || {};
+  gameState.freeStep = 'night_hold';
+  gameState.currentLocation = hold.location || '個室';
+  if (hold.angelExpression) gameState.angelExpression = hold.angelExpression;
+  if (hold.angelStatus) gameState.angelStatus = hold.angelStatus;
+  if (hold.setFlags) Object.assign(gameState.memoryFlags, hold.setFlags);
+  if (hold.relationChange) gameState.relationStage += hold.relationChange;
+
+  applyNightHoldStats(hold);
+
+  addLog(hold.logLabel || '夜は、静かに過ぎていった。');
+  render();
+}
+
+// 夜なしの日のステータス特例。定義側の stats をそのまま適用する。
+// 宣言されていない値は動かさない（例: angelFatigue を書かなければ回復しない）。
+function applyNightHoldStats(hold) {
+  if (!hold.stats) return;
+  applyStatChanges(hold.statLabel || '夜', Object.assign({}, hold.stats));
+}
+
+function onNightHoldContinue() {
+  addLog('静かに眠りについた。');
+  finishNight();
 }
 
 function findNightCareEvent(day) {
@@ -1753,6 +1819,12 @@ function renderFree() {
     const choice = choices.find((c) => c.id === gameState.pendingForcedChoiceId);
     setMessage(choice ? joinParagraphs(resolveContentText(choice, 'resultText')) : '');
     renderChoiceButtons([{ label: '続ける', onClick: onForcedAfterContinue }]);
+  } else if (gameState.freeStep === 'night_hold') {
+    hideActionBox();
+    const hold = getDayPlan(gameState.day).nightHold || {};
+    const text = joinParagraphs(resolveContentText(hold));
+    setMessage(text || '天使様のそばで、静かに夜が過ぎていった。');
+    renderChoiceButtons([{ label: '眠る', onClick: onNightHoldContinue }]);
   } else if (gameState.freeStep === 'night_care') {
     hideActionBox();
     const entry = gameState.pendingNightCareId
