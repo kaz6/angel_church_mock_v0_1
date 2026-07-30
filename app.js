@@ -171,6 +171,7 @@ const memoryFlagsDefault = {
   wedding_requested: false,
   wedding_held: false,
   loss_omen_seen: false,
+  funeral_attended: false,
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
@@ -811,6 +812,20 @@ const DAY_RULES = [
     // 葬儀の日。夜ケアは行わない（7日目と同じ仕組み）。
     // ★7日目と違い、演出は静かに終える。trust も動かさない（stats を宣言しない）。
     night: 'none',
+    // 葬儀。天使様から故人について少し話されつつ、悼む。
+    // ★「祈りながら涙が頬を伝う」独立スチルの差し込み位置を用意してある
+    //   （scenario-data.js の funeral の cg。画像はまだ無い）。
+    // ⚠️ この日だけ行動枠を消費させるかは未裁定のため、consumesSlot は宣言していない
+    //   （＝他の日と同じく消費しない）。裁定が出たら consumesSlot: true を足すだけでよい。
+    scenes: [
+      {
+        id: 'funeral',
+        timeSlot: 'morning',
+        setFlags: { funeral_attended: true },
+        relationChange: 1,
+        logLabel: '森の木の根元に、近所の人を見送った。',
+      },
+    ],
     nightHold: {
       location: '個室',
       angelExpression: 'calm',
