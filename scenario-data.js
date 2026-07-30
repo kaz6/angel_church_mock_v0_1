@@ -351,6 +351,17 @@ window.SCENARIO_DATA = {
         '[TODO:作者差し込み] 他人の式を見たあとで、天使様と二人で立っている場面。',
       ],
     },
+    {
+      // 17日目・昼：逝去の予兆
+      id: 'loss_omen',
+      location: '教会前',
+      angelExpression: 'concerned',
+      angelStatus: '話を聞いて、しばらく黙っていた',
+      text: [
+        '[TODO:作者差し込み] 野菜をくれていた近所の人の具合が良くないと伝わってくる。',
+        '[TODO:作者差し込み] 天使様の反応。★天使様は常に失う側であることを、まだ言わせない。',
+      ],
+    },
   ],
 
   nightEvents: [

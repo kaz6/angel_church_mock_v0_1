@@ -170,6 +170,7 @@ const memoryFlagsDefault = {
   // 昼側の固定イベント（8/14/17/21日目）が立てるフラグ
   wedding_requested: false,
   wedding_held: false,
+  loss_omen_seen: false,
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
@@ -789,6 +790,19 @@ const DAY_RULES = [
         timeSlot: 'evening',
         relationChange: 1,
         logLabel: '人が帰ったあとの礼拝堂で、天使様と二人になった。',
+      },
+    ],
+  },
+  {
+    day: 17,
+    // 逝去の予兆。野菜をくれていた近所の人の容体・気配。
+    // ★21日目の葬儀の伏線。ここで初めて「失う側」の話が近づく。
+    scenes: [
+      {
+        id: 'loss_omen',
+        timeSlot: 'noon',
+        setFlags: { loss_omen_seen: true },
+        logLabel: '近所の人の具合が良くないと聞いた。',
       },
     ],
   },
