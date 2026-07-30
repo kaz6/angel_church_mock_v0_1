@@ -167,6 +167,8 @@ const memoryFlagsDefault = {
   confession_day_uncertain: false,
   confession_day_silent: false,
   confession_day_avoided: false,
+  // 昼側の固定イベント（8/14/17/21日目）が立てるフラグ
+  wedding_requested: false,
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
@@ -751,6 +753,19 @@ const DAY_RULES = [
         '[TODO:作者差し込み] その夜、ケアはなかった。ただ、腕の中で息を整えているうちに、いつのまにか眠っていた。',
       ],
     },
+  },
+  {
+    day: 8,
+    // 結婚式の依頼。近所の人が「この教会で式を挙げたい」と申し出る。
+    // ★この日からコマンドが「式の準備」に変わる（上の期間ルール）。依頼はその理由づけ。
+    scenes: [
+      {
+        id: 'wedding_request',
+        timeSlot: 'morning',
+        setFlags: { wedding_requested: true },
+        logLabel: '近所の人が、この教会で式を挙げたいと言ってきた。',
+      },
+    ],
   },
   {
     day: 14,
