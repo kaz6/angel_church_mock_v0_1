@@ -180,10 +180,13 @@ const statsDefault = {
   angelFatigue: 20, // A: 28日シミュ確定（初期は疲れきった天使様＝範囲0–20の上限）
 };
 
+// 2026-07-30: trust / prayerTuning / caretakerAptitude を 60 → 255 スケールへ移行。
+// ★angelFatigue（0-20）と mentalMargin（0-20）は据え置き。この2つは「日数の感覚」に
+//   直結する値で、刻みを細かくしても意味が増えないため。
 const statsRange = {
-  trust: [0, 60],
-  prayerTuning: [0, 60],
-  caretakerAptitude: [0, 60],
+  trust: [0, 255],
+  prayerTuning: [0, 255],
+  caretakerAptitude: [0, 255],
   angelFatigue: [0, 20],
 };
 
@@ -199,7 +202,7 @@ const STAT_CONFIG = {
     prayerTuningBonusFatigueMax: 6, // angelFatigue がこの値以下ならボーナス
   },
   rest: { mentalMargin: 4 },
-  talk: { trust: 3 },
+  talk: { trust: 13 }, // 255スケール移行（3 → 13）
   eveningChores: { caretakerAptitude: 2, mentalMargin: -2 },
   eveningPray: {
     prayerTuning: 6,
@@ -209,7 +212,7 @@ const STAT_CONFIG = {
   },
   sleep: { mentalMargin: 4 },
   nightCare: {
-    trust: 2,
+    trust: 8, // 255スケール移行（2 → 8）。★+18 に上げる案は却下済み（2026-07-30）
     mentalMargin: -2, // 余白を精力に変換する分の消費（据え置き）
     // ★疲労の回復量は固定値ではなく「その夜の心身の余白」から導出する
     //   （昼の余白 → 夜の精力 → 耐えた量、という仕様上の経路。nightCareFatigueRecovery 参照）。
@@ -240,7 +243,9 @@ const FATIGUE_CONFIG = {
   //   変わらないのだから、増えも減りもしないのが正しい。旧説明（休む間に天使様が家事を
   //   肩代わりする分）はレバーCを却下した理由と同じ構造の飛躍だった（符号が逆なだけ）。
   eveningPrayReduce: 1, // 夕方に祈るを選んだ場合、日課の疲労上昇をほんの少し相殺する量
-  trustReductionRate: 0.01, // 28日シミュ最終確定（0.009→0.01）
+  // ★255スケール移行に合わせて必ず比例させる係数（旧 0.01 ＝ 0.6/60）。
+  //   忘れると 1 - trust × rate が負に振り切れ、疲労の加算そのものが止まる。
+  trustReductionRate: 0.6 / 255, // ≒0.002353
 };
 
 // trust が上がるほど疲労の「加算量」を抑える（C. 全体に効く。祈りのみ限定でない）。
@@ -693,7 +698,7 @@ const DAY_RULES = [
       // ★ステータス特例：angelFatigue を宣言しない ＝ 回復しない（天使様は我慢した）。
       //   trust は上げる（告白して受け止められる日であり、信頼が最も動く日。
       //   ここで伸びないと14日目のおあずけ解禁＝信頼最大の逆算が合わない）。
-      stats: { trust: 5 }, // 28日シミュ最終確定（+4 → +5）
+      stats: { trust: 21 }, // 255スケール移行（+5 → +21）
       text_normal: [
         '[TODO:作者差し込み] 天使様は何も言わず、あなたをそっと抱き寄せた。',
         '[TODO:作者差し込み] その夜、ケアはなかった。ただ、腕の中で息を整えているうちに、いつのまにか眠っていた。',
