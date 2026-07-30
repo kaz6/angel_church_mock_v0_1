@@ -412,6 +412,20 @@ window.SCENARIO_DATA = {
   ],
 
   freeActionTexts: {
+    // 8〜14日目に chores の代わりに読まれるプール（app.js の DAY_RULES の
+    // actionTextKeys で差し替える）。★本文は仮置き。差し替わっていることが
+    // 分かる形にしてあるだけで、作者の本文は後から差し込む。
+    weddingPrep: {
+      default: {
+        location: '礼拝堂',
+        angelExpression: 'soft',
+        angelStatus: '式の支度を気にしている',
+        text: [
+          '[TODO:作者差し込み] あなたは礼拝堂に運び込まれた長椅子の位置を直し、埋もれていた燭台を磨いた。',
+          '[TODO:作者差し込み] 「……人が集まる日のために整える、というのは、久しぶりです」',
+        ],
+      },
+    },
     chores: {
       default: {
         location: '同室の個室',

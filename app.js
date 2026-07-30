@@ -639,10 +639,26 @@ const freeActionEvents = [
      3. したがって **期間ルールを先に、単日ルールを後に書く**（単日で期間を上書きできる）
 
    キー:
-     nightEvent … 夜の強制イベント { id, setFlags?, relationChange?, logLabel? }
-   ※ 期間ルール（8〜14日のコマンド差し替え等）はステップ5以降で追加する。
-      ここでは既存の 2/3/7日目をそのまま移設しただけで、振る舞いは変えていない。 */
+     nightEvent      … 夜の強制イベント { id, setFlags?, relationChange?, logLabel? }
+     night           … 'none'（夜ケアを行わない）/ 'force'（おあずけを認めない）
+     nightHold       … night:'none' の日の演出とステータス特例
+     actionLabels    … コマンドの表示ラベルの上書き { chores: '…' }
+     actionLogLabels … 行動ログの一文の上書き { chores: '…' }
+     actionTextKeys  … 読むテキストプールの差し替え { chores: '別キー' }
+     ending          … true なら最終日（終了画面へ）。日数の知識をここに寄せる（D-2）
+
+   ★ 期間ルールを先に、単日ルールを後に書く（後に書いたものが勝つため）。 */
 const DAY_RULES = [
+  // 8〜14日目：結婚式の準備期間。コマンド「家事」を「式の準備」に差し替える。
+  // ★見た目だけの差し替え（C-1）。行動 id は chores のまま、stats の効果も同じで、
+  //   actionCounts.chores に積む。新しいシステムは作らない。
+  {
+    from: 8,
+    to: 14,
+    actionLabels: { chores: '式の準備をする' },
+    actionLogLabels: { chores: '式の準備を進めた。' },
+    actionTextKeys: { chores: 'weddingPrep' },
+  },
   {
     day: 2,
     nightEvent: {
@@ -1021,8 +1037,17 @@ function freeActionTextVariantKey(day, timeSlot) {
   return `d${day}_${timeSlot}`;
 }
 
+// その日の定義がテキストプールの差し替えを宣言していれば、そのキーのプールを使う。
+// ★行動 id は変えない（chores のまま）。読むプールだけを差し替える（C-1）。
+function resolveFreeActionTextPool(action, day) {
+  const keys = getDayPlan(day).actionTextKeys;
+  const altKey = keys && keys[action];
+  if (altKey && freeActionTexts[altKey]) return freeActionTexts[altKey];
+  return freeActionTexts[action];
+}
+
 function resolveFreeActionTextBlock(action, day, timeSlot) {
-  const actionTexts = freeActionTexts[action];
+  const actionTexts = resolveFreeActionTextPool(action, day);
   if (!actionTexts) return null;
   const variantKey = freeActionTextVariantKey(day, timeSlot);
   if (variantKey && actionTexts[variantKey]) {
