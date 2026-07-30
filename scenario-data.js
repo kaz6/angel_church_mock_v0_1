@@ -299,6 +299,26 @@ window.SCENARIO_DATA = {
 
   // nightCareEvents は night-care-data.js に分離済み（window.SCENARIO_DATA.nightCareEvents として統合される）
 
+  /* =======================================================================
+     fixedEvents — 昼側の固定イベント（8 / 14 / 17 / 21日目）の本文と演出。
+     ★★ 本文はすべてプレースホルダ。ここが作者の差し込み先。 ★★
+
+     何日目のどの時間帯に出るかは app.js の DAY_RULES 側（scenes）が持つ。
+     このファイルは「本文と見え方」だけを持つ（nightEvents と同じ役割分担）。
+
+     使えるキー:
+       id              … DAY_RULES の scenes[].id と一致させる
+       location        … HUD の場所表示
+       angelExpression … 立ち絵プレースホルダの表情
+       angelStatus     … 天使様の様子の一文
+       blackout        … true なら画面を落として文言だけで流す（14日目の式当日）
+       cg              … スチルの差し込み位置に出すCG参照ID（21日目の涙のスチル）
+       text            … 本文（配列は段落として連結される）
+       text_adult      … r18モードで差し替える本文（未指定なら text にフォールバック）
+     ======================================================================= */
+  fixedEvents: [
+  ],
+
   nightEvents: [
     {
       id: 'night_event_day2_tired_question',

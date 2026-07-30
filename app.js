@@ -688,6 +688,9 @@ const freeActionEvents = [
      3. したがって **期間ルールを先に、単日ルールを後に書く**（単日で期間を上書きできる）
 
    キー:
+     scenes          … 昼側の固定イベント（配列・宣言順に出す）
+                       { id, timeSlot?, consumesSlot?, setFlags?, relationChange?, logLabel? }
+                       timeSlot 既定は 'morning'。★行動枠は消費しない（consumesSlot 未指定時）
      nightEvent      … 夜の強制イベント { id, setFlags?, relationChange?, logLabel? }
      night           … 'none'（夜ケアを行わない）/ 'force'（おあずけを認めない）
      nightHold       … night:'none' の日の演出とステータス特例
@@ -822,6 +825,42 @@ function getForcedNightEvent(day) {
   return getDayPlan(day).nightEvent || null;
 }
 
+/* ---- 昼側の固定イベント（8 / 14 / 17 / 21日目）----
+   ★日付はここに書かない。何日目のどの時間帯に何が起きるかは DAY_RULES の scenes が持つ。
+     イベントを追加・移動したいときは定義側だけを触ればよい（この下のコードは触らない）。
+   ★行動枠は消費しない。イベントを見た日だけスコアが伸びないのは不公平なので、
+     イベントを見せたあとそのまま行動選択へ落とす（consumesSlot: true を宣言した場合のみ例外）。
+   役割分担は nightEvent と同じ：**処理は DAY_RULES、本文と演出は scenario-data.js**。 */
+
+function fixedScenesForSlot(day, timeSlot) {
+  const list = getDayPlan(day).scenes;
+  if (!Array.isArray(list)) return [];
+  return list.filter((scene) => (scene.timeSlot || 'morning') === timeSlot);
+}
+
+// id から定義を引く。★どの日に置かれていても引ける（日をまたいで移しても壊れない）。
+function findFixedSceneRule(sceneId) {
+  for (let i = 0; i < DAY_RULES.length; i++) {
+    const list = DAY_RULES[i].scenes;
+    if (!Array.isArray(list)) continue;
+    const hit = list.find((scene) => scene.id === sceneId);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// その固定イベントが何日目に置かれているか（デバッグ一覧の表示用）。
+function fixedSceneDayOf(sceneId) {
+  for (let i = 0; i < DAY_RULES.length; i++) {
+    const rule = DAY_RULES[i];
+    if (!Array.isArray(rule.scenes)) continue;
+    if (rule.scenes.some((scene) => scene.id === sceneId)) {
+      return rule.day !== undefined ? rule.day : rule.from;
+    }
+  }
+  return null;
+}
+
 // 選択肢 id → memoryFlags 処理（id の意味づけは app.js 側で解釈する）
 const nightEventChoiceFlags = {
   admit_tired: { pain_tired: true },
@@ -868,6 +907,26 @@ function joinParagraphs(value) {
   if (Array.isArray(value)) return value.join('\n\n');
   if (typeof value === 'string') return value;
   return '';
+}
+
+// 昼側の固定イベントの本文・演出（scenario-data.js の SCENARIO_DATA.fixedEvents。id で一致）。
+const fixedEvents =
+  (window.SCENARIO_DATA && window.SCENARIO_DATA.fixedEvents) || [];
+
+const FIXED_EVENT_FALLBACK = {
+  id: 'fixed_event_fallback',
+  location: '個室',
+  angelExpression: 'normal',
+  angelStatus: '静かにこちらを見ている',
+  text: ['[TODO:作者差し込み] この日の出来事があった。'],
+};
+
+function findFixedEvent(sceneId) {
+  return fixedEvents.find((e) => e.id === sceneId) || null;
+}
+
+function getFixedEventDisplay(sceneId) {
+  return findFixedEvent(sceneId) || FIXED_EVENT_FALLBACK;
 }
 
 function findNightEvent(day) {
@@ -951,11 +1010,14 @@ function createInitialState() {
     timeSlot: 'noon',
     phase: 'opening', // 'title' | 'opening' | 'free' | 'ending'
     currentSceneId: 'arrival',
-    freeStep: null, // 'select' | 'result' | 'observe' | 'forced' | 'forced_after' | 'night_care' | 'night_hold'
+    freeStep: null, // 'select' | 'result' | 'observe' | 'fixed' | 'forced' | 'forced_after' | 'night_care' | 'night_hold'
     pendingAction: null,
     pendingEntryId: null,
     pendingForcedChoiceId: null,
     pendingNightCareId: null,
+    currentFixedSceneId: null, // 表示中の固定イベント（8/14/17/21日目）
+    fixedSceneQueue: [], // 同じ時間帯に続けて出す固定イベントの id 列
+    fixedSceneConsumesSlot: false,
     nightCareCount: 0,
     careStyle: 'default',
     seenNightCareIds: [],
@@ -1070,14 +1132,10 @@ function startFreePhase() {
   gameState.phase = 'free';
   gameState.day = 2;
   gameState.timeSlot = 'morning';
-  gameState.freeStep = 'select';
-  gameState.pendingAction = null;
-  gameState.pendingEntryId = null;
-  gameState.currentLocation = '個室';
   gameState.angelExpression = 'soft';
   gameState.angelStatus = '朝の支度をしている';
   addLog('2日目の朝を迎えた。');
-  render();
+  enterFreeSlot();
 }
 
 /* ---- 自由行動フェーズ ---- */
@@ -1684,9 +1742,7 @@ function advanceTime() {
     return;
   }
 
-  gameState.freeStep = 'select';
-  gameState.currentLocation = '個室';
-  render();
+  enterFreeSlot();
 }
 
 // 夜の終わり（就寝）の共通処理。夜ケアの有無にかかわらず必ずここを通す。
@@ -1701,10 +1757,68 @@ function finishNight() {
 
   gameState.day += 1;
   gameState.timeSlot = 'morning';
-  gameState.freeStep = 'select';
+  enterFreeSlot();
+}
+
+// 時間帯（朝・昼・夕方）に入るときの共通処理。
+// ★固定イベントがあれば先に出し、無ければ行動選択へ落とす。この判断を持つ唯一の場所。
+//   「様子を見る」からの復帰は行動選択の中の遷移なので、ここは通さない（再発火を防ぐ）。
+function enterFreeSlot() {
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
   gameState.currentLocation = '個室';
+  if (startFixedScenes()) return;
+  gameState.freeStep = 'select';
+  render();
+}
+
+// その時間帯の固定イベントを順に出し始める。出すものが無ければ false を返す。
+function startFixedScenes() {
+  const list = fixedScenesForSlot(gameState.day, gameState.timeSlot);
+  if (list.length === 0) return false;
+  gameState.fixedSceneQueue = list.map((scene) => scene.id);
+  gameState.fixedSceneConsumesSlot = false;
+  return showNextFixedScene();
+}
+
+function showNextFixedScene() {
+  const queue = Array.isArray(gameState.fixedSceneQueue) ? gameState.fixedSceneQueue : [];
+  const sceneId = queue.shift();
+  gameState.fixedSceneQueue = queue;
+  if (!sceneId) return false;
+
+  const rule = findFixedSceneRule(sceneId);
+  if (!rule) return false;
+  const display = getFixedEventDisplay(sceneId);
+
+  gameState.freeStep = 'fixed';
+  gameState.currentFixedSceneId = sceneId;
+  if (display.location) gameState.currentLocation = display.location;
+  if (display.angelExpression) gameState.angelExpression = display.angelExpression;
+  if (display.angelStatus) gameState.angelStatus = display.angelStatus;
+  if (rule.setFlags) Object.assign(gameState.memoryFlags, rule.setFlags);
+  if (rule.relationChange) gameState.relationStage += rule.relationChange;
+  if (rule.consumesSlot) gameState.fixedSceneConsumesSlot = true;
+
+  const key = `fixed_${gameState.day}_${sceneId}`;
+  if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
+  addLog(rule.logLabel || 'その日の出来事があった。');
+  render();
+  return true;
+}
+
+function onFixedSceneContinue() {
+  gameState.currentFixedSceneId = null;
+  // 同じ時間帯に続きの場面があれば、そのまま次を出す（14日目の式→礼拝堂など）
+  if (showNextFixedScene()) return;
+  // ★行動枠は消費しない。イベントを見せ終えたら、その時間帯の行動選択へ落ちる。
+  //   consumesSlot: true を宣言した場合だけ、行動せずに次の時間帯へ進む。
+  if (gameState.fixedSceneConsumesSlot) {
+    gameState.fixedSceneConsumesSlot = false;
+    advanceTime();
+    return;
+  }
+  gameState.freeStep = 'select';
   render();
 }
 
@@ -1947,6 +2061,36 @@ function renderHUD() {
   document.body.classList.toggle('time-night', gameState.timeSlot === 'night');
 }
 
+// 現在表示中の固定イベント（あれば）の演出定義を返す。無ければ null。
+function currentFixedSceneDisplay() {
+  if (gameState.freeStep !== 'fixed' || !gameState.currentFixedSceneId) return null;
+  return getFixedEventDisplay(gameState.currentFixedSceneId);
+}
+
+// 暗転（14日目の式当日）。★専用CGは廃止済みなので、画面を落として文言だけで流す。
+function renderBlackout() {
+  const scene = currentFixedSceneDisplay();
+  document.body.classList.toggle('scene-blackout', !!(scene && scene.blackout));
+}
+
+// ★スチルの差し込み位置。この枠がスチル1枚ぶんの置き場所。
+//   モックに画像の表示層はまだ無いため、いまは「どのCGがここに入るか」を出すだけにしてある。
+//   実画像を入れるときは、この枠の中に img を置き、src を解決済みCG IDから作ればよい。
+function renderStillSlot() {
+  const slot = document.getElementById('still-slot');
+  if (!slot) return;
+  const scene = currentFixedSceneDisplay();
+  const cgId = scene && scene.cg ? scene.cg : null;
+  if (!cgId) {
+    slot.classList.add('hidden');
+    slot.textContent = '';
+    return;
+  }
+  const resolved = window.AssetResolver ? window.AssetResolver.resolveCgId(cgId) : cgId;
+  slot.classList.remove('hidden');
+  slot.textContent = `［スチル差し込み位置：${resolved}］（画像は未実装）`;
+}
+
 function relationLabel(v) {
   if (v <= 1) return 'まだ遠い';
   if (v <= 4) return '少しずつ近づいている';
@@ -2082,6 +2226,13 @@ function renderFree() {
         : body
     );
     renderChoiceButtons([{ label: '続ける', onClick: onResultContinueClick }]);
+  } else if (gameState.freeStep === 'fixed') {
+    // 昼側の固定イベント（8/14/17/21日目）。選択肢は「続ける」1つだけ。
+    hideActionBox();
+    clearChoiceBox();
+    const scene = getFixedEventDisplay(gameState.currentFixedSceneId);
+    setMessage(joinParagraphs(resolveContentText(scene)));
+    renderChoiceButtons([{ label: '続ける', onClick: onFixedSceneContinue }]);
   } else if (gameState.freeStep === 'forced') {
     hideActionBox();
     const scenarioEvent = getNightEventDisplay(gameState.day);
@@ -2167,6 +2318,8 @@ function render() {
   }
   showScreen('game');
   renderHUD();
+  renderBlackout();
+  renderStillSlot();
   renderAngelPanel();
   renderStatusTexts();
   if (gameState.phase === 'opening') {
@@ -2232,6 +2385,9 @@ function loadGame() {
       playerCallName: loaded.playerCallName != null ? loaded.playerCallName : '',
       pendingNightCareId: loaded.pendingNightCareId || null,
       pendingForcedChoiceId: loaded.pendingForcedChoiceId || null,
+      currentFixedSceneId: loaded.currentFixedSceneId || null,
+      fixedSceneQueue: Array.isArray(loaded.fixedSceneQueue) ? loaded.fixedSceneQueue : [],
+      fixedSceneConsumesSlot: !!loaded.fixedSceneConsumesSlot,
       callNameReactionText: null,
       pendingCallNameNext: null,
       log: loaded.log || [],
@@ -2383,6 +2539,32 @@ function buildFreeActionDetail(actionKey) {
   return lines.join('\n').trimEnd();
 }
 
+// 固定イベント（8/14/17/21日目）の中身。★作者が本文を差し込む先を一覧から開けるようにする。
+function buildFixedEventDetail(eventId) {
+  const data = getScenarioDataSafe();
+  const event = (data.fixedEvents || []).find((entry) => entry.id === eventId);
+  const lines = [`## fixedEvents / ${eventId}`, ''];
+  if (!event) {
+    lines.push('（データなし）');
+    return lines.join('\n');
+  }
+  const rule = findFixedSceneRule(eventId);
+  const day = rule ? fixedSceneDayOf(eventId) : null;
+  appendScenarioField(lines, 'id', event.id);
+  appendScenarioField(lines, '発火日', day === null ? '（定義なし）' : `${day}日目`);
+  appendScenarioField(lines, '時間帯', rule ? rule.timeSlot || 'morning' : '—');
+  appendScenarioField(lines, '行動枠', rule && rule.consumesSlot ? '消費する' : '消費しない');
+  appendScenarioField(lines, 'location', event.location);
+  appendScenarioField(lines, 'angelExpression', event.angelExpression);
+  appendScenarioField(lines, 'angelStatus', event.angelStatus);
+  appendScenarioField(lines, 'blackout', event.blackout ? 'true（暗転）' : '—');
+  appendScenarioField(lines, 'cg', event.cg || '—');
+  lines.push('');
+  lines.push('本文：');
+  lines.push(formatScenarioPreviewText(resolveContentText(event)));
+  return lines.join('\n');
+}
+
 function buildNightEventDetail(eventId) {
   const data = getScenarioDataSafe();
   const event = (data.nightEvents || []).find((entry) => entry.id === eventId);
@@ -2519,6 +2701,9 @@ function showScenarioDetail(category, id) {
     case 'freeActionTexts':
       text = buildFreeActionDetail(id);
       break;
+    case 'fixedEvents':
+      text = buildFixedEventDetail(id);
+      break;
     case 'nightEvents':
       text = buildNightEventDetail(id);
       break;
@@ -2576,6 +2761,15 @@ function renderScenarioList() {
   const freeKeys = Object.keys(freeActionTexts);
   parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">freeActionTexts：${freeKeys.length}アクション</p><ul class="scenario-list-items">`);
   freeKeys.forEach((key) => parts.push(renderScenarioListItem('freeActionTexts', key, key)));
+  parts.push('</ul></div>');
+
+  const fixedEventList = Array.isArray(data.fixedEvents) ? data.fixedEvents : [];
+  parts.push(`<div class="scenario-list-section"><p class="scenario-list-section-title">fixedEvents：${fixedEventList.length}件</p><ul class="scenario-list-items">`);
+  fixedEventList.forEach((event) => {
+    const day = fixedSceneDayOf(event.id);
+    const label = day === null ? event.id : `${day}日目 / ${event.id}`;
+    parts.push(renderScenarioListItem('fixedEvents', event.id || '', label || '(idなし)'));
+  });
   parts.push('</ul></div>');
 
   const nightEvents = Array.isArray(data.nightEvents) ? data.nightEvents : [];

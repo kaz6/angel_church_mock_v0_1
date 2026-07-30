@@ -637,6 +637,41 @@ body.time-night .game-header {
   background: rgba(238, 233, 245, 0.92);
 }
 
+/* ---------- 固定イベント（8/14/17/21日目） ---------- */
+
+/* スチル1枚ぶんの差し込み位置。画像が入るまでの枠。 */
+.still-slot {
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  margin-bottom: 14px;
+  text-align: center;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  background: var(--color-panel);
+}
+
+/* 暗転（14日目の式当日）。専用CGは廃止済みなので、画面を落として文言だけで流す。 */
+body.scene-blackout #screen-game {
+  background: #17141a;
+}
+
+body.scene-blackout .game-header,
+body.scene-blackout .angel-panel,
+body.scene-blackout .status-text-panel {
+  opacity: 0.25;
+}
+
+body.scene-blackout .message-box {
+  background: #201c26;
+  border-color: #3a3342;
+}
+
+body.scene-blackout .message-text {
+  color: #e8e2ee;
+}
+
 /* ---------- レスポンシブ ---------- */
 @media (max-width: 880px) {
   .game-main {
