@@ -215,6 +215,16 @@ for (const night of [8, 10, 12, 14, 16, 17, 18, 19, 20, 22, 24, 26, 28]) {
     `|   ${pad(o.休息家事.prayGate)}/${pad(o.休息家事.careGate)}日   |   ${pad(o.休息家事.fatigueLand)}日   | ${(both.join(',') || 'なし').padEnd(20)} | ${ok ? '★' : '×'}`);
 }
 
+/* ★「達成の早さ」だけでなく「その値が生きている日数」も見る（＝上限に張り付いていない日数） */
+console.log('');
+console.log('■ ★信頼が「生きている」日数（28日中、上限255に張り付いていない日数）');
+console.log('  夜ケア | 休息家事 | 受け身 | 会話重視 | 最大労働');
+for (const r of r1) {
+  console.log(`   ${pad(r.night)}   |   ${pad(r.o.休息家事.trustAlive)}日   |  ${pad(r.o.受け身.trustAlive)}日  |   ${pad(r.o.会話重視.trustAlive)}日   |   ${pad(r.o.最大労働.trustAlive)}日`);
+}
+console.log('  → 夜ケアを上げるほど信頼が早く上限に着く＝**信頼の値が意味を持つ日数が短くなる**。');
+console.log('     解禁を早める代償は「信頼という数値が後半なにも語らなくなること」。');
+
 const hits1 = r1.filter((r) => r.ok);
 console.log('');
 console.log(`→ 目標5項目すべてを満たす夜ケアの値：${hits1.length ? hits1.map((h) => '+' + h.night).join(' / ') : 'なし'}`);
