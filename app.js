@@ -227,6 +227,44 @@ const STAT_CONFIG = {
   restWhenTiredMentalMarginMax: 4, // rest_when_tired / angel_noticed_player_tired フラグの閾値
 };
 
+// 心身の余白の帯（2026-07-30 確定）。
+// ★これは罰ではなくケア。OPで既に実演している振る舞い（初日、働こうとする主人公を
+//   ベッドに横にさせる）を数値側に持たせただけで、新しいシステムではない。
+//   低い側で行動を止めるので、余白は「行動の可否を握るリソース」になる。
+// gatedActions … 帯の対象。★余白を消費する行動だけを対象にする（家事・祈り）。
+//   話しかけるは余白を消費しないため対象外にしてある。
+//   （タスク指示の本文は「家事・祈り・会話」だが、会話を含めると同じ指示にある実機の
+//     期待値と合わなくなる。詳細と切り替え方は実装結果の論点を参照。
+//     含める場合はこの配列に 'talk' を足すだけでよい。）
+const MARGIN_CONFIG = {
+  lowMax: 2, // 0-2 … 天使様が止める（休むとして扱う＝時間枠は消費され、余白は回復する）
+  midMax: 7, // 3-7 … 行動はできるが伸びが半分
+  midRate: 0.5,
+  gatedActions: ['chores', 'pray'],
+};
+
+function marginBand(margin) {
+  if (margin <= MARGIN_CONFIG.lowMax) return 'low';
+  if (margin <= MARGIN_CONFIG.midMax) return 'mid';
+  return 'high';
+}
+
+// その行動が今どの帯にかかるか。対象外の行動は常に 'high'（素通り）を返す。
+function marginBandForAction(actionId) {
+  if (!MARGIN_CONFIG.gatedActions.includes(actionId)) return 'high';
+  return marginBand(gameState.stats.mentalMargin);
+}
+
+// 帯による効果の倍率。★倍率をかけるのは「伸び」だけ。余白の消費と疲労の増減にはかけない
+//   （手加減しても、かかった手間と天使様の疲れの動きは変わらないため）。
+function marginEffectRate(band) {
+  return band === 'mid' ? MARGIN_CONFIG.midRate : 1;
+}
+
+function scaleGain(value, rate) {
+  return Math.round(value * rate);
+}
+
 // 未実装機能のための確定値。**定数として置くだけで、判定ロジックはまだ作らない。**
 // 参照元の機能（おあずけの選択／エンディング分岐）を実装するときにここを見る。
 const UNLOCK_CONFIG = {
@@ -265,6 +303,7 @@ const actionCountsDefault = {
   rest: 0,
   talk: 0,
   nightCare: 0,
+  blocked: 0, // ★余白 0-2 で天使様に止められた回数（休むとして扱われた分）
 };
 
 // 2日目朝から表示する基本行動。
@@ -925,6 +964,10 @@ function createInitialState() {
     lastStatChanges: null,
     lastStatusChangeComment: '',
     statChangeLog: [],
+    marginNotice: null, // null | 'low'（止められた） | 'mid'（効果が半分）
+    marginNoticeText: '',
+    // ★0クランプで消えた余白の計測（addMargin が唯一の入口）。帯が効いていれば 0 のまま。
+    marginClamp: { count: 0, absorbed: 0 },
     seenEventIds: [],
     log: [],
     playerCallName: '',
@@ -1146,21 +1189,59 @@ const actionLogLabels = {
   talk: '天使様に話しかけた。',
 };
 
+// 余白の帯を知らせる文（本文は scenario-data.js の marginNoticeTexts。ここは保険の既定値）。
+// ★止められたこと・効果が半分になったことがプレイヤーに分かるようにするための入口。
+const BLOCKED_STAT_LABEL = '天使様に止められた';
+const MARGIN_NOTICE_FALLBACK = {
+  low: '[TODO:作者差し込み] 天使様はあなたの手からそれを取り上げ、ベッドの縁に座らせた。',
+  lowLog: '天使様に止められ、休むことになった。',
+  mid: '[TODO:作者差し込み] 天使様の視線を感じて、途中で手を止めた。',
+  midLog: '手加減したぶん、はかどらなかった。',
+};
+
+function getMarginNoticeText(key) {
+  const pool = (window.SCENARIO_DATA && window.SCENARIO_DATA.marginNoticeTexts) || {};
+  const value = pool[key];
+  if (Array.isArray(value) && value.length > 0) {
+    return value[Math.floor(Math.random() * value.length)];
+  }
+  if (typeof value === 'string' && value) return value;
+  return MARGIN_NOTICE_FALLBACK[key] || '';
+}
+
 /* ---- パラメーター（stats）更新 ---- */
-// 心身の余白は行動不能を生むスタミナではないため、低くても行動は制限しない。
+// ★旧注記「心身の余白は行動不能を生むスタミナではないため、低くても行動は制限しない」は
+//   削除した。2026-07-30 に余白の帯（MARGIN_CONFIG）を入れ、低い側では天使様が止める
+//   ＝行動の可否を握るリソースになったため、この記述はもう成り立たない。
+
+function marginMaxValue() {
+  return typeof gameState.stats.mentalMarginMax === 'number' &&
+    Number.isFinite(gameState.stats.mentalMarginMax)
+    ? gameState.stats.mentalMarginMax
+    : statsDefault.mentalMarginMax;
+}
+
+// ★心身の余白の唯一の入口。stats.mentalMargin を直接足す場所を作らない。
+//   0 クランプで消えた分（消費したはずなのに払っていない分）をここで数える。
+//   旧実装では -2 が 0 に丸められ、就寝 +4 でそのまま戻るため、余白が尽きるほど
+//   「消費が無料になる」穴があった。帯の制約が効いていれば count は 0 のままになる。
+function addMargin(delta) {
+  const max = marginMaxValue();
+  const raw = gameState.stats.mentalMargin + delta;
+  if (raw < 0) {
+    gameState.marginClamp.count += 1;
+    gameState.marginClamp.absorbed += -raw;
+  }
+  gameState.stats.mentalMargin = Math.min(max, Math.max(0, raw));
+}
 
 function clampStats() {
   Object.keys(statsRange).forEach((key) => {
     const [min, max] = statsRange[key];
     gameState.stats[key] = Math.min(max, Math.max(min, gameState.stats[key]));
   });
-  const marginMax =
-    typeof gameState.stats.mentalMarginMax === 'number' &&
-    Number.isFinite(gameState.stats.mentalMarginMax)
-      ? gameState.stats.mentalMarginMax
-      : statsDefault.mentalMarginMax;
   gameState.stats.mentalMargin = Math.min(
-    marginMax,
+    marginMaxValue(),
     Math.max(0, gameState.stats.mentalMargin)
   );
 }
@@ -1281,9 +1362,13 @@ function applyStatChanges(label, changes, options = {}) {
   }
 
   Object.keys(changes).forEach((key) => {
-    if (gameState.stats[key] !== undefined) {
-      gameState.stats[key] += changes[key];
+    if (gameState.stats[key] === undefined) return;
+    // ★余白だけは addMargin を通す（唯一の入口。0クランプの計測をここに集約する）。
+    if (key === 'mentalMargin') {
+      addMargin(changes[key]);
+      return;
     }
+    gameState.stats[key] += changes[key];
   });
 
   clampStats();
@@ -1318,21 +1403,49 @@ function applyStatChanges(label, changes, options = {}) {
   }
 }
 
-function applyChoresStats() {
+// rate は余白の帯による効果倍率（1 か 0.5）。★かけるのは伸びだけ（marginEffectRate 参照）。
+function applyChoresStats(rate = 1) {
+  const cfg = STAT_CONFIG.chores;
   applyStatChanges(
     getActionLabel('chores'),
-    Object.assign({}, STAT_CONFIG.chores),
+    {
+      caretakerAptitude: scaleGain(cfg.caretakerAptitude, rate),
+      angelFatigue: cfg.angelFatigue,
+      mentalMargin: cfg.mentalMargin,
+    },
     { actionCountKey: 'chores' }
   );
 }
 
-function applyPrayStats() {
+function applyPrayStats(rate = 1) {
   const cfg = STAT_CONFIG.pray;
-  const changes = { prayerTuning: cfg.prayerTuning, mentalMargin: cfg.mentalMargin };
+  let gain = cfg.prayerTuning;
   if (gameState.stats.angelFatigue <= cfg.prayerTuningBonusFatigueMax) {
-    changes.prayerTuning += cfg.prayerTuningBonus;
+    gain += cfg.prayerTuningBonus;
   }
+  const changes = {
+    prayerTuning: scaleGain(gain, rate), // ★ボーナスを足したあとに倍率をかける
+    mentalMargin: cfg.mentalMargin,
+  };
   applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
+}
+
+// 余白 0-2 で天使様に止められたとき。★休むとして扱う（時間枠は消費され、余白は回復する）。
+// 行動の伸びは一切入らない。カウントは rest ではなく blocked に積み、
+// 「止められた回数」を数えられるようにしておく。
+function applyBlockedByAngelStats() {
+  applyStatChanges(
+    BLOCKED_STAT_LABEL,
+    { mentalMargin: STAT_CONFIG.rest.mentalMargin },
+    {
+      actionCountKey: 'blocked',
+      beforeApply: (before) => {
+        if (before.mentalMargin <= STAT_CONFIG.restWhenTiredMentalMarginMax) {
+          gameState.memoryFlags.rest_when_tired = true;
+        }
+      },
+    }
+  );
 }
 
 // 休むは主人公の心身の余白だけを回復させる。**天使様の疲労には触れない**
@@ -1366,26 +1479,31 @@ function applyTalkStats() {
 // （ただし祈るを選んだ場合のみ、日課の疲労上昇をほんの少し相殺する＝下記 applyEveningPrayStats）。
 // 家事は一人で行うぶん caretakerAptitude の伸びを控えめに、祈るは務めに寄り添うぶん
 // prayerTuning を通常より高めにする。休むは通常の rest と同じでよいため専用関数を作らない。
-function applyEveningChoresStats() {
+function applyEveningChoresStats(rate = 1) {
+  const cfg = STAT_CONFIG.eveningChores;
   applyStatChanges(
     getActionLabel('chores'),
-    Object.assign({}, STAT_CONFIG.eveningChores),
+    {
+      caretakerAptitude: scaleGain(cfg.caretakerAptitude, rate),
+      mentalMargin: cfg.mentalMargin,
+    },
     { actionCountKey: 'chores' }
   );
 }
 
 // 夕方の祈るは、夕方の祈り（天使様の日課）で自動的に溜まる疲労（advanceTime内）を
 // ほんの少し相殺する（新規）。全体の加算を打ち消すほどではない。
-function applyEveningPrayStats() {
+function applyEveningPrayStats(rate = 1) {
   const cfg = STAT_CONFIG.eveningPray;
+  let gain = cfg.prayerTuning;
+  if (gameState.stats.angelFatigue <= cfg.prayerTuningBonusFatigueMax) {
+    gain += cfg.prayerTuningBonus;
+  }
   const changes = {
-    prayerTuning: cfg.prayerTuning,
+    prayerTuning: scaleGain(gain, rate), // ★ボーナスを足したあとに倍率をかける
     mentalMargin: cfg.mentalMargin,
     angelFatigue: -FATIGUE_CONFIG.eveningPrayReduce,
   };
-  if (gameState.stats.angelFatigue <= cfg.prayerTuningBonusFatigueMax) {
-    changes.prayerTuning += cfg.prayerTuningBonus;
-  }
   applyStatChanges(actionLabels.pray, changes, { actionCountKey: 'pray' });
 }
 
@@ -1466,6 +1584,20 @@ function onActionButtonClick(actionId) {
   gameState.pendingAction = actionId;
   gameState.freeStep = 'result';
 
+  // ★余白の帯（MARGIN_CONFIG）。低い側では天使様が止めるので、
+  //   イベントの抽選より先に判定して、その行動そのものを起こさない。
+  const band = marginBandForAction(actionId);
+  gameState.marginNotice = band === 'high' ? null : band;
+  // 文の抽選はここで1回だけ行う（render のたびに引き直すと文が入れ替わる）
+  gameState.marginNoticeText = band === 'high' ? '' : getMarginNoticeText(band);
+  if (band === 'low') {
+    gameState.pendingEntryId = null;
+    applyBlockedByAngelStats();
+    addLog(getMarginNoticeText('lowLog'));
+    render();
+    return;
+  }
+
   // 選ばれたイベントは setFlags 適用前に確定させ、その id を保存しておく。
   // （renderFree 側で毎回 findFreeActionEvent を呼び直すと、setFlags で
   //   条件が変化した直後に別のイベントへすり替わってしまうため）
@@ -1482,13 +1614,15 @@ function onActionButtonClick(actionId) {
     if (!gameState.seenEventIds.includes(key)) gameState.seenEventIds.push(key);
   }
   const effectFn = getActionStatEffect(actionId);
-  if (effectFn) effectFn();
+  if (effectFn) effectFn(marginEffectRate(band));
   const logLabel =
     getActionLogLabel(actionId) ||
     (gameState.timeSlot === 'evening' && eveningActionLogLabels[actionId]) ||
     actionLogLabels[actionId] ||
     '行動した。';
   addLog(logLabel);
+  // 効果が半分になったことも記録に残す（プレイヤーが後から辿れるように）
+  if (band === 'mid') addLog(getMarginNoticeText('midLog'));
   render();
 }
 
@@ -1522,6 +1656,8 @@ function advanceTime() {
   gameState.pendingAction = null;
   gameState.pendingEntryId = null;
   gameState.lastStatusChangeComment = '';
+  gameState.marginNotice = null;
+  gameState.marginNoticeText = '';
 
   // 夕方の祈り（天使様の日課）: プレイヤーの行動と無関係に、夕方フェーズに入る瞬間に
   // 毎日1回だけ発生させる。朝→昼→夕方→夜の遷移はこの1箇所だけなので二重加算しない。
@@ -1923,11 +2059,23 @@ function renderFree() {
     renderChoiceButtons([{ label: '戻る', onClick: onObserveBackClick }]);
   } else if (gameState.freeStep === 'result') {
     hideActionBox();
+    // ★余白 0-2 で止められた場合は行動そのものが起きていないので、本文も差し替える。
+    if (gameState.marginNotice === 'low') {
+      setMessage(gameState.marginNoticeText || getMarginNoticeText('low'));
+      renderChoiceButtons([{ label: '続ける', onClick: onResultContinueClick }]);
+      return;
+    }
     // 選択時に確定させた entry を id で引き直す（flags 変化後の再判定によるすり替わりを防ぐ）
     const entry = gameState.pendingEntryId
       ? freeActionEvents.find((e) => e.id === gameState.pendingEntryId)
       : null;
-    setMessage(getFreeActionDisplay(entry).text);
+    const body = getFreeActionDisplay(entry).text;
+    // 余白 3-7 は行動できているので、本文の後ろに「手加減した」一文を足す。
+    setMessage(
+      gameState.marginNotice === 'mid'
+        ? `${body}\n\n${gameState.marginNoticeText || getMarginNoticeText('mid')}`
+        : body
+    );
     renderChoiceButtons([{ label: '続ける', onClick: onResultContinueClick }]);
   } else if (gameState.freeStep === 'forced') {
     hideActionBox();
@@ -1995,6 +2143,8 @@ function renderDebug() {
     stats: formatStatsForDebug(gameState.stats),
     statusTexts: formatStatusTextsForDebug(gameState.stats),
     actionCounts: formatActionCountsForDebug(gameState.actionCounts),
+    marginBand: marginBand(gameState.stats.mentalMargin),
+    marginClamp: gameState.marginClamp,
     lastStatChanges: gameState.lastStatChanges,
     lastStatusChangeComment: gameState.lastStatusChangeComment,
     statChangeLog: gameState.statChangeLog,
@@ -2063,6 +2213,13 @@ function loadGame() {
       lastStatusChangeComment:
         typeof loaded.lastStatusChangeComment === 'string' ? loaded.lastStatusChangeComment : '',
       statChangeLog: Array.isArray(loaded.statChangeLog) ? loaded.statChangeLog : [],
+      marginNotice: loaded.marginNotice || null,
+      marginNoticeText:
+        typeof loaded.marginNoticeText === 'string' ? loaded.marginNoticeText : '',
+      marginClamp: {
+        count: (loaded.marginClamp && loaded.marginClamp.count) || 0,
+        absorbed: (loaded.marginClamp && loaded.marginClamp.absorbed) || 0,
+      },
       seenEventIds: loaded.seenEventIds || [],
       seenNightCareIds: loaded.seenNightCareIds || [],
       nightCareCount: loaded.nightCareCount != null ? loaded.nightCareCount : 0,
