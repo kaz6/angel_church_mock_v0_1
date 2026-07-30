@@ -21,8 +21,8 @@ const STORAGE_KEY = 'angelChurchMockV0_1_save';
 
 const TIME_SLOTS = ['morning', 'noon', 'evening', 'night'];
 
-// モック終了する最終日（この日の夜ケア→就寝後に終了画面）。5, 6, 28… へ延長するときはここだけ変更。
-const END_DAY = 7;
+// ★最終日は定数で持たない。DAY_RULES 側の `ending: true` で宣言する（D-2）。
+//   コードから日付の知識を消すため。判定は isEndingDay() / endingDay() 経由。
 
 // 表示ラベル（編集: scenario-data.js の SCENARIO_DATA.statLabels 等）
 const FALLBACK_STAT_LABELS = {
@@ -700,6 +700,35 @@ const DAY_RULES = [
       ],
     },
   },
+  {
+    day: 14,
+    // 小さな結婚式の日。おあずけを認めない強制の夜。
+    // ★おあずけが未実装のため、現時点では実行時の効果はない（定義だけ入れておく）。
+    //   実装時は enterNightPart() の判定②（おあずけ）より先に見ること。
+    night: 'force',
+  },
+  {
+    day: 21,
+    // 葬儀の日。夜ケアは行わない（7日目と同じ仕組み）。
+    // ★7日目と違い、演出は静かに終える。trust も動かさない（stats を宣言しない）。
+    night: 'none',
+    nightHold: {
+      location: '個室',
+      angelExpression: 'calm',
+      angelStatus: '窓の外を見たまま、動かない',
+      logLabel: '言葉を交わさないまま、その夜は終わった。',
+      text_normal: [
+        '[TODO:作者差し込み] その夜、天使様は何も求めなかった。',
+        '[TODO:作者差し込み] 隣で息をしている音だけが聞こえていた。',
+      ],
+    },
+  },
+  {
+    day: 28,
+    // 最終日。この日の夜を終えた時点で終了画面へ入る（D-2：日数の知識を定義側へ）。
+    // ★エンディング分岐4択の中身はまだ実装しない。既存の終了処理で止まるだけ。
+    ending: true,
+  },
 ];
 
 function matchesDayRule(rule, day) {
@@ -707,6 +736,24 @@ function matchesDayRule(rule, day) {
   const from = rule.from === undefined ? -Infinity : rule.from;
   const to = rule.to === undefined ? Infinity : rule.to;
   return day >= from && day <= to;
+}
+
+// 最終日（ending: true を宣言している日）のうち最も遅い日を返す。
+// ★「28」をコードに書かないための入口。定義に ending が1つも無ければ null。
+function endingDay() {
+  let last = null;
+  DAY_RULES.forEach((rule) => {
+    if (!rule.ending || rule.day === undefined) return;
+    if (last === null || rule.day > last) last = rule.day;
+  });
+  return last;
+}
+
+// 終了判定。`>=` にしているのは、万一その日を飛ばしても終われるようにするため
+// （旧 END_DAY の防御的な比較を引き継ぐ）。
+function isEndingDay(day) {
+  const last = endingDay();
+  return last !== null && day >= last;
 }
 
 // その日の計画を解決する。日付の知識はこの関数の内側だけに閉じる。
@@ -1501,7 +1548,7 @@ function advanceTime() {
 function finishNight() {
   applySleepRecoveryStats();
 
-  if (gameState.day >= END_DAY) {
+  if (isEndingDay(gameState.day)) {
     showEndingScreen();
     return;
   }
