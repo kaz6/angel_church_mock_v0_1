@@ -262,13 +262,33 @@ const actionCountsDefault = {
   nightCare: 0,
 };
 
-// 2日目朝から表示する基本行動（ラベルは actionLabels 由来）
+// 2日目朝から表示する基本行動。
+// ★ラベルは固定文字列で持たない。その日の定義（DAY_RULES の actionLabels）から
+//   解決する（getActionLabel）。上書きが無い日は既定ラベルがそのまま返るため、
+//   期間ルールを足さないかぎり表示は変わらない。
 const actionDefinitions = [
-  { id: 'chores', label: actionLabels.chores },
-  { id: 'pray', label: actionLabels.pray },
-  { id: 'rest', label: actionLabels.rest },
-  { id: 'talk', label: actionLabels.talk },
+  { id: 'chores' },
+  { id: 'pray' },
+  { id: 'rest' },
+  { id: 'talk' },
 ];
+
+// 行動の表示ラベルを、その日の定義 → 既定ラベル の順で解決する。
+// ★日付の条件分岐はここに書かない。何日目に何を差し替えるかは DAY_RULES 側の知識。
+function getActionLabel(actionId, day) {
+  const plan = getDayPlan(day === undefined ? gameState.day : day);
+  const overrides = plan.actionLabels;
+  if (overrides && overrides[actionId]) return overrides[actionId];
+  return actionLabels[actionId] || actionId;
+}
+
+// 行動ログの一文も同じ規則で解決する（既定は actionLogLabels）。
+function getActionLogLabel(actionId, day) {
+  const plan = getDayPlan(day === undefined ? gameState.day : day);
+  const overrides = plan.actionLogLabels;
+  if (overrides && overrides[actionId]) return overrides[actionId];
+  return null;
+}
 
 /* ---------------------- 固定オープニング（1日目） ---------------------- */
 // 本文・演出: scenario-data.js の openingScenes（id で解決）
@@ -1223,7 +1243,7 @@ function applyStatChanges(label, changes, options = {}) {
 
 function applyChoresStats() {
   applyStatChanges(
-    actionLabels.chores,
+    getActionLabel('chores'),
     Object.assign({}, STAT_CONFIG.chores),
     { actionCountKey: 'chores' }
   );
@@ -1271,7 +1291,7 @@ function applyTalkStats() {
 // prayerTuning を通常より高めにする。休むは通常の rest と同じでよいため専用関数を作らない。
 function applyEveningChoresStats() {
   applyStatChanges(
-    actionLabels.chores,
+    getActionLabel('chores'),
     Object.assign({}, STAT_CONFIG.eveningChores),
     { actionCountKey: 'chores' }
   );
@@ -1387,6 +1407,7 @@ function onActionButtonClick(actionId) {
   const effectFn = getActionStatEffect(actionId);
   if (effectFn) effectFn();
   const logLabel =
+    getActionLogLabel(actionId) ||
     (gameState.timeSlot === 'evening' && eveningActionLogLabels[actionId]) ||
     actionLogLabels[actionId] ||
     '行動した。';
@@ -1688,7 +1709,7 @@ function renderActionButtons() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'action-btn';
-    btn.textContent = a.label;
+    btn.textContent = getActionLabel(a.id);
     btn.addEventListener('click', () => onActionButtonClick(a.id));
     container.appendChild(btn);
   });
