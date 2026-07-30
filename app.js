@@ -194,18 +194,18 @@ const statsRange = {
 // 各 apply*Stats はここを参照する。マジックナンバーを本体ロジックに直書きしない）。
 // 値は上記スケール（2倍）に合わせた最終値。
 const STAT_CONFIG = {
-  chores: { caretakerAptitude: 4, angelFatigue: -2, mentalMargin: -2 },
+  chores: { caretakerAptitude: 8, angelFatigue: -2, mentalMargin: -2 },
   pray: {
-    prayerTuning: 4,
+    prayerTuning: 5, // 昼の祈り（夕方より低い＝天使様の務めに寄り添えないぶん）
     mentalMargin: -2,
     prayerTuningBonus: 2,
     prayerTuningBonusFatigueMax: 6, // angelFatigue がこの値以下ならボーナス
   },
   rest: { mentalMargin: 4 },
   talk: { trust: 13 }, // 255スケール移行（3 → 13）
-  eveningChores: { caretakerAptitude: 2, mentalMargin: -2 },
+  eveningChores: { caretakerAptitude: 4, mentalMargin: -2 },
   eveningPray: {
-    prayerTuning: 6,
+    prayerTuning: 7,
     mentalMargin: -2,
     prayerTuningBonus: 2,
     prayerTuningBonusFatigueMax: 6,
@@ -268,9 +268,14 @@ function scaleGain(value, rate) {
 // 未実装機能のための確定値。**定数として置くだけで、判定ロジックはまだ作らない。**
 // 参照元の機能（おあずけの選択／エンディング分岐）を実装するときにここを見る。
 const UNLOCK_CONFIG = {
-  holdbackTrustMin: 50, // おあずけを選べるようになる trust のしきい値（0-60スケール）
-  holdbackMinDay: 8, // 併せて日数の床がある（告白の日＝7日目より後）
-  endingGateMin: 50, // エンディングのゲート：prayerTuning / caretakerAptitude のしきい値
+  // ★おあずけの解禁は日数制。信頼のしきい値は使わない（旧 holdbackTrustMin は定数ごと削除）。
+  //   信頼で解禁すると、会話をしないプレイでは14日目の強制に間に合わず、
+  //   間に合わせようとすると疲労の着地まで巻き込んで動く（信頼が疲労の係数を握っているため）。
+  //   「解禁は日数、信頼は疲労のバフ」と役割を分けて、この連動を切った。
+  holdbackMinDay: 12, // おあずけを選べるようになる日（14日目の強制まで2日の助走）
+  // エンディングのゲート：prayerTuning / caretakerAptitude のしきい値（0-255スケール）。
+  // ★天使様の疲れ（angelFatigue）はゲートに使わない。前半の目的専用の値。
+  endingGateMin: 200,
 };
 
 // angelFatigue の加算（新規・往復させる側）専用の設定。
