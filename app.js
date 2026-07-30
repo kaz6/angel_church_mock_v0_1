@@ -169,6 +169,7 @@ const memoryFlagsDefault = {
   confession_day_avoided: false,
   // 昼側の固定イベント（8/14/17/21日目）が立てるフラグ
   wedding_requested: false,
+  wedding_held: false,
 };
 
 // パラメーター（§パラメータ設計）初期値・範囲
@@ -773,6 +774,23 @@ const DAY_RULES = [
     // ★おあずけが未実装のため、現時点では実行時の効果はない（定義だけ入れておく）。
     //   実装時は enterNightPart() の判定②（おあずけ）より先に見ること。
     night: 'force',
+    // 他人の式。★新郎新婦は出さない。式当日は暗転＋短い文言で流す（専用CGは廃止済み）。
+    //   式そのものは朝、「人が帰ったあとの、二人だけの礼拝堂」は夕方に置いた。
+    //   時間帯を変えたいときは timeSlot を書き換えるだけでよい。
+    scenes: [
+      {
+        id: 'wedding_day',
+        timeSlot: 'morning',
+        setFlags: { wedding_held: true },
+        logLabel: '教会で、他人の結婚式が行われた。',
+      },
+      {
+        id: 'wedding_after',
+        timeSlot: 'evening',
+        relationChange: 1,
+        logLabel: '人が帰ったあとの礼拝堂で、天使様と二人になった。',
+      },
+    ],
   },
   {
     day: 21,
