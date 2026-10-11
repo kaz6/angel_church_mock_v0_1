@@ -154,7 +154,7 @@
 
 ## モデル選択
 
-- 日常＝**Sonnet 5**、難所＝**Opus 4.8**。
+- 既定のモデルと相談役（advisor）は `.claude/settings.json` に従う（現在は model＝sonnet、advisorModel＝opus）。版は別名が指す現行のもの。
 - **Fable 5 は原則使わない**（2026-07-13 よりサブスク定額枠から外れ完全従量課金のため）。
 
 ---
