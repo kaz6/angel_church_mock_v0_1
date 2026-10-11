@@ -287,7 +287,7 @@ memoryFlagsDefault    … フラグ初期値
 
 依頼に含まれていても、**単独では着手しない**（明示指示があれば spec 更新後に検討）。
 
-- 実装以外の文書更新（`CURRENT_SPEC.md` / `DATA_MODEL.md` / `NEXT_TASKS.md`）— **依頼された文書だけ**
+- 実装以外の文書更新（`CURRENT_SPEC.md` / `NEXT_TASKS.md`）— **依頼された文書だけ**
 - 成人要素の具体化
 - 複数ヒロイン化
 - Live2D・ボイス・BGM/SE 本番素材・背景・立ち絵外注
