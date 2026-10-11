@@ -5,13 +5,14 @@
 #    ここ以外を企画側で直さないこと。直すなら正本を直して全リポジトリに配り直す）
 #
 # 動き：PR の差分を GitHub API で取り、Anthropic の Messages API に直接渡して、レビューをコメントで1件書く
-#   Claude GitHub App・claude-code-action は使わない（DECISION_LOG「#2 は保留」の項目を参照）
+#   同じ PR で再実行したときは、すでにあるこのコメントを更新する（PR に付くレビューのコメントは常に1件）
+#   Claude GitHub App・claude-code-action は使わない（理由は kaz6/ops の docs/DECISION_LOG.md「#2 は保留」の項目）
 #   GitHub の操作は GITHUB_TOKEN だけ。承認も変更要求もしない（コメントだけ）
 # 手動で動かす：Actions →「PR の自動レビュー」→ Run workflow → pr_number に PR の番号
 #   （draft の PR も、手動なら動く）
 # 費用の見積もり：Sonnet 5.5（入力 $2 / 出力 $10 per 100万トークン）で1回 $0.03〜0.2 程度。
 #   上限の目安：差分8万字＋決定記録3万字（入力およそ7万トークン＝$0.14）＋出力 max_tokens 16000（＝$0.16）で約 $0.3
-#   実際の費用は毎回コメントの末尾に出る
+#   実測（2026-10-11、9リポジトリ）は 1回 $0.025〜0.084。実際の費用は毎回コメントの末尾に出る
 #
 # 鍵：secrets.ANTHROPIC_API_KEY（リポジトリごとに登録。値は読まない・出力しない）。無ければ、その理由をコメントに書いて失敗する
 # 権限：contents: read（決定記録を読む）と pull-requests: write（コメントを書く）だけ
@@ -24,6 +25,11 @@
 #   max_tokens は「思考＋本文」の上限。上限に達すると本文が空のまま stop_reason=max_tokens になりうる（#1 で Haiku に起きた）
 #   → effort を medium に下げて思考を抑え、max_tokens は 16000 に取る（思考で多くても数千、本文は数千字）。
 #   本文が空ならコメントに stop_reason を出す。長い待ちを避けるため非ストリーミングのまま 16000 に収める
+#
+# 本文の整え方（スクリプトが機械的に行う。指示文だけに頼らない）：
+#   結論の行は、モデルには書かせず、指摘の重さの件数から作る（結論とラベルが食い違わない）
+#   「確認のみ」「問題ではない」と書かれた項目は除く（除いた件数をコメントに書く）
+#   考え直した跡（取り下げ・取り消し等）が出たら、1回だけ頼み直す
 
 name: PR の自動レビュー
 
@@ -44,7 +50,7 @@ env:
   # ▼ 企画ごとに変える所（ここだけ）
   # DECISION_LOG の場所。空なら「なし」として読まない
   PR_REVIEW_DECISION_LOG: "docs/DECISION_LOG.md"
-  # 差分から除くパスの前方一致（カンマ区切り）。空なら無し
+  # 差分から除くパス（カンマ区切り）。末尾が / のものはその下すべて、それ以外はそのパス1つ。空なら無し
   PR_REVIEW_EXCLUDE_PREFIXES: ""
   # 差分から除く拡張子（カンマ区切り、ドット付き）。空なら無し
   PR_REVIEW_EXCLUDE_EXTS: ""
@@ -72,9 +78,11 @@ jobs:
           python3 -I - <<'PYEOF'
           import json
           import os
+          import re
           import sys
           import time
           import urllib.error
+          import urllib.parse
           import urllib.request
 
           GH_API = os.environ.get("GH_API_BASE", "https://api.github.com")
@@ -108,7 +116,7 @@ jobs:
               ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".psd",
               ".mp3", ".ogg", ".wav", ".mp4", ".mov", ".webm",
               ".zip", ".gz", ".7z", ".pdf", ".ttf", ".otf", ".woff", ".woff2",
-              ".dll", ".exe", ".so", ".bin", ".wasm", ".pck", ".res", ".import",
+              ".dll", ".exe", ".so", ".bin", ".wasm", ".pck",
           }
 
           SYSTEM_PROMPT = """あなたはゲーム開発リポジトリの Pull Request を読む、慎重なレビュアーです。
@@ -121,13 +129,17 @@ jobs:
           - 差分に無いコードの状態は、見えている範囲でしか判断できません。確信がないことは断定せず「不明」と書いてください。推測で指摘を作らないでください。
 
           # 書き方（日本語）
-          1. 先頭に結論を1〜2行（「直すべき指摘あり」「指摘なし」など）。
-          2. 指摘は1件ずつ、次の形で書く：
-             - `ファイル名:行` ／ 重さ（直すべき／検討／好み）／ 理由（何が起きるか、なぜそう言えるか）
-          3. 行番号は差分の新しい側（+ の側）の行を指す。分からなければ `ファイル名` だけにして、行は「不明」と書く。
-          4. 指摘が無い、または確認だけの項目しかないなら、「指摘なし」と1行で終える（見た範囲＝どのファイルを見たかを1行添えてよい）。
-             「問題ではない」「説明どおりで矛盾なし」と分かっているものは書かない。確認しただけのことを項目に立てない。水増しした指摘は書かない。
-          5. 承認・変更要求の言葉（「Approve」「マージしてよい」など）は使わない。意見を述べるだけにする。"""
+          - 結論の行・件数・まとめは書かない（あとで機械が、指摘の重さから作る）。
+          - 指摘は1件ずつ、箇条書き（行頭が「- 」）で、1行目を必ず次の形にする：
+            - `ファイル名:行` ／ 直すべき（または 検討／好み／不明）／ 理由（どんな入力・状態で何が間違うか、なぜそう言えるか）
+            重さの意味：直すべき＝誤動作や食い違いが実際に起きると、差分から言える。検討＝起きうるが条件や影響が小さい、または意図の確認が要る。好み＝直さなくてよい改善案。不明＝判断する材料が差分に無い。
+          - 行番号は差分の新しい側（+ の側）の行を指す。分からなければ `ファイル名` だけにして、行は「不明」と書く。
+          - 指摘にするのは、「どんな入力・状態で何が間違うか」を書けるものだけ。書けないものは書かない。
+          - 調べて問題が無いと分かったこと（「問題ではない」「説明どおり」「矛盾なし」「影響は出ない」）は書かない。「確認のみ」として載せることもしない。
+          - 考え直した跡を本文に残さない。途中で問題が無いと分かった項目は、最初から無かったことにして、最終的に残す指摘だけを書く。「取り下げ」「取り消し」「整理します」と書かない。
+          - 指摘は重い順に、最大5件。指摘の後ろに、まとめや補足の文章を書かない。
+          - 指摘が無いときは「指摘なし」とだけ書く（見たファイル名を1行添えてよい）。
+          - 承認・変更要求の言葉（「Approve」「マージしてよい」など）は使わない。意見を述べるだけにする。"""
 
 
           def log(msg):
@@ -151,17 +163,111 @@ jobs:
                   return json.loads(text) if text else None
 
 
+          def find_own_comment(pr):
+              """この仕組みが以前に書いたコメント（MARKER で始まる、github-actions[bot] のもの）の id。無ければ None。"""
+              page = 1
+              while True:
+                  chunk = gh("GET", f"/repos/{REPO}/issues/{pr}/comments?per_page=100&page={page}") or []
+                  for c in chunk:
+                      if (c.get("body") or "").startswith(MARKER) and (c.get("user") or {}).get("login") == "github-actions[bot]":
+                          return c["id"]
+                  if len(chunk) < 100:
+                      return None
+                  page += 1
+
+
           def post_comment(pr, body):
+              """コメントは PR に常に1件。以前のものがあれば更新し、無ければ新しく書く。"""
               if len(body) > 60_000:
                   body = body[:60_000] + "\n\n（長すぎるため途中で切りました）"
-              gh("POST", f"/repos/{REPO}/issues/{pr}/comments", {"body": body})
+              cid = None
+              try:
+                  cid = find_own_comment(pr)
+              except Exception as e:
+                  log(f"以前のコメントを探せなかった（新しく書く）: {type(e).__name__}: {e}")
+              if cid:
+                  gh("PATCH", f"/repos/{REPO}/issues/comments/{cid}", {"body": body})
+              else:
+                  gh("POST", f"/repos/{REPO}/issues/{pr}/comments", {"body": body})
 
+
+          FINDING_RE = re.compile(r"／\s*(?:重さ[：:]\s*)?(直すべき|検討|好み|不明)\s*／")
+          RETRACT_RE = re.compile(r"取り下げ|取り消し|取り消して|整理します|問題ではなかった|確認の結果、問題|指摘としては立てない|やはり問題")
+          NONISSUE_RE = re.compile(r"問題ではありません|問題ではない|問題とは言えず|確認のみ")
+          WEIGHTS = ["直すべき", "検討", "好み", "不明", "書式外"]
+          TITLES = {
+              "直すべき": "直すべき指摘あり",
+              "検討": "検討の指摘あり（直すべきは無し）",
+              "好み": "好みの指摘のみ",
+              "不明": "確認できなかった点のみ",
+              "書式外": "書式外の項目のみ",
+          }
+          RETRY_NOTE = (
+              "\n\n# 再依頼\n前回の出力に、考え直した跡（取り下げ・取り消し・「問題ではなかった」）が残っていた。"
+              "調べ直して、最終的に残す指摘だけを、決められた形で書く。問題が無かった項目は書かない。"
+          )
+
+
+          def split_items(text):
+              """本文を、(前置き, 指摘の塊のリスト, 末尾の文章) に分ける。指摘は行頭が「- 」の塊。"""
+              lines = text.split("\n")
+              first = next((i for i, l in enumerate(lines) if l.startswith("- ")), None)
+              if first is None:
+                  return text.strip(), [], ""
+              head = "\n".join(lines[:first]).strip()
+              items, cur = [], []
+              for l in lines[first:]:
+                  if l.startswith("- ") and cur:
+                      items.append("\n".join(cur))
+                      cur = []
+                  cur.append(l)
+              items.append("\n".join(cur))
+              tail = ""
+              m = re.search(r"\n\s*\n(?=\S)", items[-1])
+              if m:
+                  tail = items[-1][m.end():].strip()
+                  items[-1] = items[-1][:m.start()]
+              return head, [i.strip() for i in items], tail
+
+
+          def normalize_review(text):
+              """モデルの本文を整える。結論の行は指摘の重さの件数から作り、確認だけの項目は除く。
+              戻り値: (本文, 注記のリスト)"""
+              head, items, tail = split_items(text)
+              notes = []
+              if not items:
+                  if text.strip().startswith("指摘なし"):
+                      return text.strip().split("\n")[0], notes
+                  notes.append("本文が決められた形（箇条書き）になっていなかったため、そのまま載せています")
+                  return text.strip(), notes
+              kept, dropped = [], 0
+              for it in items:
+                  if NONISSUE_RE.search(it):
+                      dropped += 1
+                  else:
+                      kept.append(it)
+              if dropped:
+                  notes.append(f"「確認のみ」「問題ではない」と書かれた項目 {dropped} 件は除きました")
+              if tail:
+                  notes.append("指摘の後ろの余分な文章は除きました")
+              if not kept:
+                  return "指摘なし", notes
+              labeled = []
+              for it in kept:
+                  m = FINDING_RE.search(it.split("\n")[0])
+                  labeled.append((m.group(1) if m else "書式外", it))
+              labeled.sort(key=lambda x: WEIGHTS.index(x[0]))
+              counts = {w: sum(1 for l, _ in labeled if l == w) for w in WEIGHTS}
+              worst = next(w for w in WEIGHTS if counts[w])
+              summary = "／".join(f"{w} {counts[w]}件" for w in WEIGHTS if counts[w])
+              body = f"**{TITLES[worst]}**（{summary}）\n\n" + "\n\n".join(it for _, it in labeled)
+              return body, notes
 
           def is_excluded(f):
               name = f["filename"]
               base = name.rsplit("/", 1)[-1]
               ext = ("." + base.rsplit(".", 1)[-1].lower()) if "." in base else ""
-              if EXCLUDE_PREFIXES and name.startswith(EXCLUDE_PREFIXES):
+              if any((p.endswith("/") and name.startswith(p)) or name == p for p in EXCLUDE_PREFIXES):
                   return "この企画の除外パス"
               if EXCLUDE_EXTS and ext in EXCLUDE_EXTS:
                   return "この企画の除外拡張子"
@@ -243,13 +349,18 @@ jobs:
                           break
                   except Exception as e:  # 接続エラー・タイムアウト
                       last = f"{type(e).__name__}: {e}"
-                  time.sleep(5 * (attempt + 1))
+                  if attempt < 2:
+                      time.sleep(5 * (attempt + 1))
               raise RuntimeError(last or "不明なエラー")
+
+
+          def get_text(resp):
+              return "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text").strip()
 
 
           def main():
               raw_pr = os.environ.get("PR_NUMBER", "")
-              if not raw_pr.isdigit():
+              if not (raw_pr.isascii() and raw_pr.isdigit()):
                   log(f"PR 番号が数字ではありません: {raw_pr!r}")
                   return 1
               pr = int(raw_pr)
@@ -266,17 +377,23 @@ jobs:
                       raise RuntimeError("ANTHROPIC_API_KEY がこのリポジトリの Secrets に登録されていません")
                   diff, excluded, dropped, truncated = build_diff(files)
 
-                  decisions = ""
+                  decisions, run_notes = "", []
                   if DECISION_LOG_PATH:
                       try:
-                          decisions = gh("GET", f"/repos/{REPO}/contents/{DECISION_LOG_PATH}?ref={meta['base']['ref']}",
-                                         accept="application/vnd.github.raw", raw=True)
+                          decisions = gh(
+                              "GET",
+                              f"/repos/{REPO}/contents/{urllib.parse.quote(DECISION_LOG_PATH, safe='/')}"
+                              f"?ref={urllib.parse.quote(meta['base']['ref'], safe='')}",
+                              accept="application/vnd.github.raw", raw=True)
                       except Exception as e:
                           log(f"DECISION_LOG を読めなかった（続行）: {type(e).__name__}")
+                      if not decisions:
+                          run_notes.append(f"`{DECISION_LOG_PATH}` を読めなかった（または空だった）ため、DECISION_LOG の決定との矛盾は見ていません")
                   decision_note = ""
                   if len(decisions) > MAX_DECISION_CHARS:
                       decisions = decisions[-MAX_DECISION_CHARS:]
                       decision_note = "（長いので末尾＝新しい側の3万字だけ）"
+                      run_notes.append("DECISION_LOG は新しい側の3万字だけを渡しました（古い決定との矛盾は見ていません）")
 
                   user_text = (
                       f"# PR #{pr}：{meta.get('title', '')}\n"
@@ -286,7 +403,12 @@ jobs:
                       f"{decisions or ('（この企画には DECISION_LOG が無い。決定との矛盾は見なくてよい）' if not DECISION_LOG_PATH else '（読めなかった／空）')}\n\n"
                       f"## 差分（新しい側の行番号は @@ のヘッダから数える）\n{diff or '（レビュー対象の差分なし）'}\n"
                   )
-                  resp = call_anthropic(user_text)
+                  resps = [call_anthropic(user_text)]
+                  if RETRACT_RE.search(get_text(resps[0])):
+                      log("考え直した跡があったため、1回だけ頼み直す")
+                      resps.append(call_anthropic(user_text + RETRY_NOTE))
+                      run_notes.append("1回目の出力に考え直した跡があったため、頼み直しました（費用は2回分）")
+                  resp = resps[-1]
               except Exception as e:
                   reason = str(e)
                   if ANTHROPIC_KEY:
@@ -302,14 +424,16 @@ jobs:
                       log(f"失敗のコメントも書けなかった: {type(e2).__name__}: {e2}")
                   return 1
 
-              usage = resp.get("usage", {})
-              tin = usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
-              tout = usage.get("output_tokens", 0)
+              tin = tout = 0
+              for r in resps:
+                  usage = r.get("usage", {})
+                  tin += usage.get("input_tokens", 0) + usage.get("cache_creation_input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+                  tout += usage.get("output_tokens", 0)
               cost = tin * PRICE_IN + tout * PRICE_OUT
               stop = resp.get("stop_reason")
-              text = "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text").strip()
+              text = get_text(resp)
 
-              notes = []
+              notes = list(run_notes)
               if excluded:
                   names = "、".join(f"`{n}`（{w}）" for n, w in excluded[:40])
                   more = f" ほか{len(excluded) - 40}件" if len(excluded) > 40 else ""
@@ -328,6 +452,13 @@ jobs:
                           + ("思考だけで出力の上限に達した可能性があります。" if stop == "max_tokens" else ""))
               elif stop and stop != "end_turn":
                   notes.append(f"stop_reason = `{stop}`（本文が途中で終わっている可能性があります）")
+                  text, more = normalize_review(text)
+                  notes += more
+              else:
+                  text, more = normalize_review(text)
+                  notes += more
+                  if RETRACT_RE.search(text):
+                      notes.append("頼み直しても、考え直した跡のような文言が残っている可能性があります")
 
               body = (
                   f"{MARKER}\n## 自動レビュー（{MODEL}）\n\n{text}\n\n---\n"
