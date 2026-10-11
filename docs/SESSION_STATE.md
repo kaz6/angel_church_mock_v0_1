@@ -139,7 +139,7 @@
 - ★**リポジトリの main を合流させた（2026-10-03・横断運用）**：07-26〜07-30 の作業（上の 066fc4c〜0ff7f6f と、session-end スキルの導入 2ad354b を含む44件）は別ブランチ claude/all-ages-r18-architecture-jbk8wv にだけあり、**main は 07-15 の da946e3 で止まっていた**（コンテナは main から起動するため、毎回この古い状態で始まっていた）。DECISION_LOG（正本）と突き合わせて食い違いがないことを確かめ、**main を f193927 へ fast-forward した**。戻すときは main を da946e3 に戻せばよい
 	- ⚠️ **repo の docs/ のミラーは古いまま**（DECISION_LOG の写しは正本79件中71件、SESSION_STATE・CURRENT_SPEC・夜ケア仕様の写しは 07-30 時点で、おあずけ解禁＝信頼50＋8日目などの旧記述が残る）。コードは正本の新しい決定どおり。**次の天使様のセッションで Notion → ローカルの同期をすること**
 - 運用（2026-10-11・横断運用）：.claude/settings.json に既定のモデル sonnet と相談役（advisorModel）opus を設定した（PR #1、マージ a8ca7da）。主を Sonnet にし、計画・原因のはっきりしない失敗・完了の確認だけ Opus に相談させるため。効いているかは新しいセッションで /advisor（引数なし）を打って確かめる。戻すときはこの2行を消すか、セッション中に /model opus と /advisor off
-- 指示文の点検（2026-10-11・横断運用）：事実の訂正は1件（AI_GUIDELINES.md の存在しない DATA_MODEL.md への参照を外した）。CLAUDE.md は変えていない。記録は docs/audit/2026-10-11-prompt-audit.md。モデル選択節の「Opus 4.8」と settings の opus の版の食い違いは作者への質問に回した
+- 指示文の点検（2026-10-11・横断運用）：事実の訂正は1件（AI_GUIDELINES.md の存在しない DATA_MODEL.md への参照を外した）。記録は docs/audit/2026-10-11-prompt-audit.md。作者の裁定（A）で、CLAUDE.md のモデル選択節の「Opus 4.8」を「settings.json に従う」に置き換えた
 
 ---
 
