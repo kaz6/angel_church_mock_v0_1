@@ -3,6 +3,8 @@
 # ただし共有スキル（session-end 等）はリポジトリにコミットして残す。
 # クラウド実行の Claude Code は個人スキル ~/.claude/skills/ を保持しないため。
 !.claude/skills/
+# 既定のモデルと相談役（advisor）の設定は共有する（2026-10-11・横断運用）
+!.claude/settings.json
 
 # OS files
 Thumbs.db
