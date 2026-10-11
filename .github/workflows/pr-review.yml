@@ -192,7 +192,7 @@ jobs:
 
 
           FINDING_RE = re.compile(r"／\s*(?:重さ[：:]\s*)?(直すべき|検討|好み|不明)\s*／")
-          RETRACT_RE = re.compile(r"取り下げ|取り消し|取り消して|整理します|問題ではなかった|確認の結果、問題|指摘としては立てない|やはり問題")
+          RETRACT_RE = re.compile(r"指摘(?:としては)?(?:を)?取り下げ|取り消して整理|整理します|問題ではなかった|確認の結果、問題|指摘としては立てない|上の項目は.{0,20}(?:問題|取り消)")
           NONISSUE_RE = re.compile(r"問題ではありません|問題ではない|問題とは言えず|確認のみ")
           WEIGHTS = ["直すべき", "検討", "好み", "不明", "書式外"]
           TITLES = {
@@ -451,9 +451,7 @@ jobs:
                   text = (f"レビュー本文が空でした。{detail}。"
                           + ("思考だけで出力の上限に達した可能性があります。" if stop == "max_tokens" else ""))
               elif stop and stop != "end_turn":
-                  notes.append(f"stop_reason = `{stop}`（本文が途中で終わっている可能性があります）")
-                  text, more = normalize_review(text)
-                  notes += more
+                  notes.append(f"stop_reason = `{stop}`（本文が途中で終わっている可能性があります。整形せず原文を載せています）")
               else:
                   text, more = normalize_review(text)
                   notes += more
