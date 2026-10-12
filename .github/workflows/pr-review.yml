@@ -12,7 +12,7 @@
 #   （draft の PR も、手動なら動く）
 # 費用の見積もり：Sonnet 5.5（入力 $2 / 出力 $10 per 100万トークン）で1回 $0.03〜0.2 程度。
 #   上限の目安：差分8万字＋決定記録3万字（入力およそ7万トークン＝$0.14）＋出力 max_tokens 16000（＝$0.16）で約 $0.3
-#   仕様ファイルを読む企画は、仕様（節を選ぶ企画は3万字まで、全文の企画はその大きさ）＋決定記録1万字に替わる
+#   仕様ファイルを読む企画は、仕様（節を選ぶ企画は3万字まで、全文の企画は合わせて6万字まで）＋決定記録1万字に替わる
 #   実測（2026-10-11、9リポジトリ）は 1回 $0.025〜0.084。実際の費用は毎回コメントの末尾に出る
 #
 # 鍵：secrets.ANTHROPIC_API_KEY（リポジトリごとに登録。値は読まない・出力しない）。無ければ、その理由をコメントに書いて失敗する
@@ -20,7 +20,8 @@
 #
 # 仕様ファイル（いまの仕様。2026-10-12、ops #8 の C）：env の PR_REVIEW_SPEC_FILES があれば読む
 #   sections：見出しで区切り、目次＋「PR が触ったファイル名・差分に出る語」を含む節だけを、合わせて3万字まで渡す
-#   full：全文を渡す（6万字で切る）
+#     （語は差分に入れたファイルからだけ取る。半分を超える節に出る語は、どの節にも出るので得点にしない。コードブロックの中の # は見出しにしない）
+#   full：全文を渡す（ファイルが複数なら合わせて6万字まで、等分して切る）
 #   仕様ファイルを読むときは DECISION_LOG を末尾1万字に減らし、食い違ったら DECISION_LOG の末尾（新しい決定）を優先させる。
 #   コメントに仕様ファイルの最終更新日（base ブランチでそのファイルを変えた最後のコミットの日付）を書く
 #
@@ -344,6 +345,8 @@ jobs:
               """PR が触ったファイル名（重み5）と、差分の追加・削除行に出る語（重み1）を集める。"""
               terms = {}
               for f in files:
+                  if is_excluded(f):
+                      continue                    # 差分に入れないファイル（lockfile・除外パスなど）の語は使わない
                   name = f["filename"]
                   base = name.rsplit("/", 1)[-1]
                   for t in {name, base, base.rsplit(".", 1)[0]}:
@@ -352,18 +355,22 @@ jobs:
                   for line in (f.get("patch") or "").split("\n"):
                       if line[:1] not in ("+", "-") or line.startswith(("+++", "---")):
                           continue
-                      for t in re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}|[ァ-ヴー]{3,}|[一-龥々]{3,}", line):
+                      for t in re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}|[ァ-ヴー]{2,}|[一-龥々]{2,}", line):
                           if t.lower() not in STOP_TERMS:
                               terms.setdefault(t, 1)
               return terms
 
 
           def spec_sections(text, terms, budget):
-              """見出し（#〜###）で区切り、目次＋語を含む節を、得点の高い順に budget 字まで選ぶ（出力は原本の順）。"""
+              """見出し（#〜###）で区切り、目次＋語を含む節を、得点の高い順に budget 字まで選ぶ（出力は原本の順）。
+              戻り値：(渡す文, 選んだ節の数, 語を含む節の数, 枠に収まらず渡さなかった節の数)"""
               heads, cur = [], []
               secs = [cur]                    # 先頭（最初の見出しより前）も1節として扱う
+              fence = False
               for line in text.split("\n"):
-                  m = SPEC_HEADING_RE.match(line)
+                  if line.lstrip().startswith("```"):
+                      fence = not fence
+                  m = None if fence else SPEC_HEADING_RE.match(line)
                   if m:
                       heads.append("  " * (len(m.group(1)) - 1) + "- " + m.group(2))
                       cur = [line]
@@ -371,25 +378,36 @@ jobs:
                   else:
                       cur.append(line)
               toc = "### 目次\n" + "\n".join(heads) + "\n"
+              if len(toc) > budget // 3:
+                  toc = toc[:budget // 3] + "\n…（目次はここまで）\n"
               blocks = ["\n".join(b).strip() for b in secs if "\n".join(b).strip()]
+              # 半分を超える節に出る語は、どの節にも出る語なので得点にしない（2字の語を入れても選び方が崩れないように）
+              common = {t for t in terms if sum(1 for b in blocks if t in b) * 2 > len(blocks)}
               scored = []
               for i, b in enumerate(blocks):
-                  score = sum(w for t, w in terms.items() if t in b)
+                  score = sum(w for t, w in terms.items() if t not in common and t in b)
                   if score:
                       scored.append((-score, i))
               room = budget - len(toc)
-              chosen = []
+              chosen, too_big = [], 0
               for _, i in sorted(scored):
                   if len(blocks[i]) + 2 <= room:
                       chosen.append(i)
                       room -= len(blocks[i]) + 2
+                  else:
+                      too_big += 1
               chosen.sort()
-              return toc + "\n" + "\n\n".join(blocks[i] for i in chosen), len(chosen), len(scored)
+              return toc + "\n" + "\n\n".join(blocks[i] for i in chosen), len(chosen), len(scored), too_big
 
 
           def spec_last_date(path, ref):
-              data = gh("GET", f"/repos/{REPO}/commits?path={urllib.parse.quote(path, safe='/')}&sha={ref}&per_page=1")
-              return data[0]["commit"]["committer"]["date"][:10] if data else "不明"
+              """base ブランチでそのファイルを変えた最後のコミットの日付。取れなければ「不明」（本文は渡す）。"""
+              try:
+                  data = gh("GET", f"/repos/{REPO}/commits?path={urllib.parse.quote(path, safe='/')}&sha={ref}&per_page=1")
+                  return data[0]["commit"]["committer"]["date"][:10] if data else "不明"
+              except Exception as e:
+                  log(f"仕様ファイル {path} の最終更新日を取れなかった（続行）: {type(e).__name__}")
+                  return "不明"
 
 
           def call_anthropic(user_text):
@@ -470,18 +488,20 @@ jobs:
                       try:
                           t = gh("GET", f"/repos/{REPO}/contents/{urllib.parse.quote(path, safe='/')}?ref={base_ref}",
                                  accept="application/vnd.github.raw", raw=True)
-                          date = spec_last_date(path, base_ref)
                       except Exception as e:
                           log(f"仕様ファイル {path} を読めなかった（続行）: {type(e).__name__}")
                           spec_notes.append(f"`{path}` は読めなかった")
                           continue
+                      date = spec_last_date(path, base_ref)
                       if SPEC_MODE == "sections":
                           budget = MAX_SPEC_SECTIONS_CHARS // len(SPEC_FILES)
-                          part, n, hit = spec_sections(t, spec_terms(files), budget)
-                          spec_notes.append(f"`{path}`（最終更新 {date}）から、目次と、PR が触ったファイル名・差分の語を含む {n} 節（該当 {hit} 節のうち、{budget:,}字まで）")
+                          part, n, hit, big = spec_sections(t, spec_terms(files), budget)
+                          spec_notes.append(f"`{path}`（最終更新 {date}）から、目次と、PR が触ったファイル名・差分の語を含む {n} 節（該当 {hit} 節のうち、{budget:,}字まで"
+                                            + (f"。枠に収まらず渡さなかった節 {big}" if big else "") + "）")
                       else:
-                          part = t[:MAX_SPEC_FULL_CHARS]
-                          spec_notes.append(f"`{path}`（最終更新 {date}）の全文" + (f"（{MAX_SPEC_FULL_CHARS:,}字で切った）" if len(t) > MAX_SPEC_FULL_CHARS else ""))
+                          budget = MAX_SPEC_FULL_CHARS // len(SPEC_FILES)
+                          part = t[:budget]
+                          spec_notes.append(f"`{path}`（最終更新 {date}）の全文" + (f"（{budget:,}字で切った）" if len(t) > budget else ""))
                       spec_text += f"### {path}（最終更新 {date}）\n{part}\n\n"
                   decision_note = ""
                   if spec_text:
@@ -489,7 +509,9 @@ jobs:
                           decisions = decisions[-MAX_DECISION_WITH_SPEC:]
                           decision_note = "（仕様ファイルを読むので、末尾＝新しい側の1万字だけ）"
                       run_notes.append("仕様ファイル：" + "／".join(spec_notes) + "を渡しました。"
-                                       + ("仕様と食い違う新しい決定は DECISION_LOG の末尾1万字を優先しました" if decisions else "DECISION_LOG は無い（または読めなかった）"))
+                                       + (("仕様と食い違う新しい決定は DECISION_LOG の末尾1万字を優先しました（それより古い決定との矛盾は見ていません）"
+                                           if decision_note else "仕様と食い違う新しい決定は DECISION_LOG（全文）を優先しました")
+                                          if decisions else "DECISION_LOG は無い（または読めなかった）"))
                   else:
                       if spec_notes:
                           run_notes.append("仕様ファイル：" + "／".join(spec_notes))
