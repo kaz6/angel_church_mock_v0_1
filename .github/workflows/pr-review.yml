@@ -30,6 +30,7 @@
 #   渡す順は「ゲーム本体 → データ → その他 → tools/・テスト」。切るのは後ろから（本体を最後まで残す）。
 #   本体とデータのパスは企画ごとの env（PR_REVIEW_CORE_PATHS・PR_REVIEW_DATA_PATHS）。tools/・テストの判定は全企画共通：
 #   根の tools/ の下、どの深さでも test/・tests/・__tests__/・Tests/・fixtures/ の下、名前が *.test.* か *.spec.* のファイル（foo.spec.d.ts も）
+#   この判定は本体・データより先に効く：本体のパスの下にあるテスト（例 Assets/Scripts/Tests/、src/foo.test.js）も最後に回す（テストより本体のコードを残すため。意図どおり）
 #
 # max_tokens の根拠（公式文書で確認）：
 #   Sonnet 5.5 は thinking を指定しなくても adaptive thinking で動き、思考のトークンは出力に数えられる。
