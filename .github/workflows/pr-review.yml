@@ -29,7 +29,7 @@
 # 差分が8万字を超えたら途中で切る（切ったことと、入らなかったファイル名をコメントに書く）
 #   渡す順は「ゲーム本体 → データ → その他 → tools/・テスト」。切るのは後ろから（本体を最後まで残す）。
 #   本体とデータのパスは企画ごとの env（PR_REVIEW_CORE_PATHS・PR_REVIEW_DATA_PATHS）。tools/・テストの判定は全企画共通：
-#   根の tools/ の下、どの深さでも test/・tests/・__tests__/・Tests/・fixtures/ の下、名前が *.test.* か *.spec.* のファイル
+#   根の tools/ の下、どの深さでも test/・tests/・__tests__/・Tests/・fixtures/ の下、名前が *.test.* か *.spec.* のファイル（foo.spec.d.ts も）
 #
 # max_tokens の根拠（公式文書で確認）：
 #   Sonnet 5.5 は thinking を指定しなくても adaptive thinking で動き、思考のトークンは出力に数えられる。
@@ -136,7 +136,7 @@ jobs:
           DATA_PATHS = env_list("PR_REVIEW_DATA_PATHS")
           LOW_PREFIXES = ("tools/",)                                        # 全企画共通：最後に渡す（tools/・テスト）
           LOW_DIRS = {"test", "tests", "__tests__", "Tests", "fixtures"}   # どの深さのフォルダでも
-          LOW_NAME_RE = re.compile(r"\.(test|spec)\.[A-Za-z0-9]+$")
+          LOW_NAME_RE = re.compile(r"\.(test|spec)(\.[A-Za-z0-9]+)+$")   # foo.test.js・foo.spec.d.ts
           LOCKFILE_NAMES = {
               "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
               "Pipfile.lock", "poetry.lock", "uv.lock", "Cargo.lock", "composer.lock",
