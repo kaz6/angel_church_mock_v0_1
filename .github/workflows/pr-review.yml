@@ -27,6 +27,8 @@
 #
 # 差分に入れないもの：企画ごとの除外（env）、lockfile、バイナリ・巨大で差分が取れないファイル（除いたファイル名はコメントに書く）
 # 差分が8万字を超えたら途中で切る（切ったことと、入らなかったファイル名をコメントに書く）
+#   渡す順は「ゲーム本体 → データ → その他 → tools/・テスト」。切るのは後ろから（本体を最後まで残す）。
+#   本体とデータのパスは企画ごとの env（PR_REVIEW_CORE_PATHS・PR_REVIEW_DATA_PATHS）。tools/・テストの判定は全企画共通
 #
 # max_tokens の根拠（公式文書で確認）：
 #   Sonnet 5.5 は thinking を指定しなくても adaptive thinking で動き、思考のトークンは出力に数えられる。
@@ -66,6 +68,10 @@ env:
   PR_REVIEW_SPEC_FILES: "CURRENT_SPEC.md"
   # 仕様ファイルの渡し方：sections（関係する節だけ）／full（全文）
   PR_REVIEW_SPEC_MODE: "sections"
+  # ゲーム本体のパス（カンマ区切り。* はどの文字にも合う。例 js/*,index.html）。差分が上限を超えるとき最初に渡す
+  PR_REVIEW_CORE_PATHS: "app.js,index.html,style.css,asset-resolver.js,content-config.js"
+  # データのパス（書き方は同じ）。本体の次に渡す
+  PR_REVIEW_DATA_PATHS: "scenario-data.js,night-care-data.js,night-care.csv"
   # ▲ 企画ごとに変える所（ここまで）
 
 concurrency:
@@ -88,6 +94,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python3 -I - <<'PYEOF'
+          import fnmatch
           import json
           import os
           import re
@@ -124,6 +131,10 @@ jobs:
           EXCLUDE_EXTS = tuple(x.lower() for x in env_list("PR_REVIEW_EXCLUDE_EXTS"))
           SPEC_FILES = env_list("PR_REVIEW_SPEC_FILES")
           SPEC_MODE = os.environ.get("PR_REVIEW_SPEC_MODE", "").strip() or "full"
+          CORE_PATHS = env_list("PR_REVIEW_CORE_PATHS")
+          DATA_PATHS = env_list("PR_REVIEW_DATA_PATHS")
+          LOW_PREFIXES = ("tools/", "test/", "tests/", "__tests__/")       # 全企画共通：最後に渡す（tools/・テスト）
+          LOW_NAME_RE = re.compile(r"\.(test|spec)\.[A-Za-z0-9]+$")
           LOCKFILE_NAMES = {
               "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
               "Pipfile.lock", "poetry.lock", "uv.lock", "Cargo.lock", "composer.lock",
@@ -309,6 +320,17 @@ jobs:
                   page += 1
 
 
+          def diff_tier(name):
+              """渡す順：0＝ゲーム本体 → 1＝データ → 2＝その他 → 3＝tools/・テスト。"""
+              if name.startswith(LOW_PREFIXES) or "/fixtures/" in f"/{name}" or LOW_NAME_RE.search(name):
+                  return 3
+              if any(fnmatch.fnmatchcase(name, p) for p in CORE_PATHS):
+                  return 0
+              if any(fnmatch.fnmatchcase(name, p) for p in DATA_PATHS):
+                  return 1
+              return 2
+
+
           def build_diff(files):
               """除外と8万字の切り詰めを行い、(差分テキスト, 除外一覧, 入らなかったファイル, 切ったか) を返す。"""
               parts, excluded, dropped, used, truncated = [], [], [], 0, False
@@ -469,7 +491,8 @@ jobs:
               try:
                   if not ANTHROPIC_KEY:
                       raise RuntimeError("ANTHROPIC_API_KEY がこのリポジトリの Secrets に登録されていません")
-                  diff, excluded, dropped, truncated = build_diff(files)
+                  # 差分が上限を超えたときに本体が残るよう、本体 → データ → その他 → tools/・テストの順に並べる（同じ段の中は元の順）
+                  diff, excluded, dropped, truncated = build_diff(sorted(files, key=lambda f: diff_tier(f["filename"])))
 
                   decisions, run_notes = "", []
                   base_ref = urllib.parse.quote(meta['base']['ref'], safe='')
@@ -568,7 +591,7 @@ jobs:
                   tail = ""
                   if dropped:
                       tail = "。まるごと入らなかったファイル：" + "、".join(f"`{n}`" for n in dropped[:40])
-                  notes.append(f"差分が{MAX_DIFF_CHARS:,}字を超えたため途中で切りました{tail}")
+                  notes.append(f"差分が{MAX_DIFF_CHARS:,}字を超えたため、ゲーム本体 → データ → その他 → tools/・テストの順に渡し、後ろから切りました{tail}")
               if not text:
                   detail = f"stop_reason = `{stop}`"
                   sd = resp.get("stop_details")
